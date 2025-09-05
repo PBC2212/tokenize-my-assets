@@ -1,6 +1,20 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000';
+const USE_MOCK_API = !window.location.hostname.includes('localhost') || process.env.NODE_ENV === 'development';
+
+// Mock API responses for testing without backend
+const mockResponses = {
+  '/api/auth/register': { success: true, message: 'User registered successfully', user: { id: '1', email: 'test@test.com', name: 'Test User' } },
+  '/api/auth/login': { success: true, token: 'mock-jwt-token', user: { id: '1', email: 'test@test.com', name: 'Test User' } },
+  '/api/auth/me': { id: '1', email: 'test@test.com', name: 'Test User', createdAt: new Date().toISOString() },
+  '/api/kyc/status': { status: 'pending', submittedAt: null, reviewedAt: null, rejectionReason: null },
+  '/api/assets/my-assets': [],
+  '/api/marketplace/listings': [],
+  '/api/liquidity/pools': [],
+  '/api/activity/my-activity': [],
+  '/api/health': { status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' }
+};
 
 // Create axios instance
 const api = axios.create({
@@ -9,6 +23,41 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Mock interceptor for development
+if (USE_MOCK_API) {
+  api.interceptors.request.use(
+    (config) => {
+      console.log('🔧 Mock API Mode - Backend server not required for testing');
+      const mockData = mockResponses[config.url as keyof typeof mockResponses];
+      if (mockData) {
+        return Promise.reject({
+          response: { data: mockData, status: 200 },
+          config,
+          isMock: true
+        });
+      }
+      return config;
+    }
+  );
+
+  api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.isMock) {
+        return Promise.resolve({ data: error.response.data });
+      }
+      if (error.code === 'ERR_NETWORK' || error.message.includes('ERR_CONNECTION_REFUSED')) {
+        console.warn('⚠️ Backend server not running. Using mock data.');
+        const mockData = mockResponses[error.config?.url as keyof typeof mockResponses];
+        if (mockData) {
+          return Promise.resolve({ data: mockData });
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+}
 
 // Add auth token to requests
 api.interceptors.request.use(
