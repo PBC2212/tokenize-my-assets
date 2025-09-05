@@ -8,7 +8,26 @@ const mockResponses = {
   '/api/auth/login': { success: true, token: 'mock-jwt-token', user: { id: '1', email: 'test@test.com', name: 'Test User' } },
   '/api/auth/me': { id: '1', email: 'test@test.com', name: 'Test User', createdAt: new Date().toISOString() },
   '/api/kyc/status': { status: 'pending', submittedAt: null, reviewedAt: null, rejectionReason: null },
-  '/api/assets/my-assets': [],
+  '/api/assets/my-assets': [
+    { 
+      id: '1', 
+      assetType: 'Real Estate', 
+      description: 'Luxury apartment in downtown', 
+      estimatedValue: 250000, 
+      status: 'approved', 
+      submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      approvedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+    },
+    { 
+      id: '2', 
+      assetType: 'Gold', 
+      description: '24k Gold bars - 10oz', 
+      estimatedValue: 18500, 
+      status: 'approved', 
+      submittedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+      approvedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    }
+  ],
   '/api/marketplace/listings': [],
   '/api/liquidity/pools': [],
   '/api/activity/my-activity': [],

@@ -23,6 +23,7 @@ import {
   AlertCircle,
   Coins
 } from "lucide-react";
+import { MintTokenDialog } from "@/components/MintTokenDialog";
 
 const AssetsList = () => {
   const { data: assets = [], isLoading } = useQuery({
@@ -142,10 +143,12 @@ const AssetsList = () => {
                 </div>
 
                 {asset.status === 'approved' && (
-                  <Button size="sm" className="w-full gradient-primary">
-                    <Coins className="w-4 h-4 mr-2" />
-                    Mint Tokens
-                  </Button>
+                  <MintTokenDialog asset={asset}>
+                    <Button size="sm" className="w-full gradient-primary">
+                      <Coins className="w-4 h-4 mr-2" />
+                      Mint Tokens
+                    </Button>
+                  </MintTokenDialog>
                 )}
               </CardContent>
             </Card>

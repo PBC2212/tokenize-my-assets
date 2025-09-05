@@ -10,8 +10,11 @@ import {
   Activity,
   Plus,
   ArrowUpRight,
-  DollarSign
+  DollarSign,
+  Coins,
+  Zap
 } from "lucide-react";
+import { MintTokenDialog } from "@/components/MintTokenDialog";
 import { Link } from "react-router-dom";
 
 const Dashboard = () => {
@@ -34,6 +37,7 @@ const Dashboard = () => {
 
   const totalAssetValue = assets.reduce((sum: number, asset: any) => sum + (asset.estimatedValue || 0), 0);
   const activeAssets = assets.filter((asset: any) => asset.status === 'approved').length;
+  const readyToMint = assets.filter((asset: any) => asset.status === 'approved').length;
   const recentActivities = activities.slice(0, 5);
 
   return (
@@ -144,6 +148,49 @@ const Dashboard = () => {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Ready to Mint Assets */}
+        {readyToMint > 0 && (
+          <Card className="gradient-card border-0 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Zap className="w-5 h-5 text-primary" />
+                <span>Ready to Mint</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                You have {readyToMint} approved asset{readyToMint !== 1 ? 's' : ''} ready for tokenization
+              </p>
+              {assets
+                .filter((asset: any) => asset.status === 'approved')
+                .slice(0, 2)
+                .map((asset: any) => (
+                  <div key={asset.id} className="p-3 rounded-lg bg-muted/20 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{asset.assetType}</span>
+                      <span className="text-sm text-success font-semibold">
+                        ${asset.estimatedValue?.toLocaleString()}
+                      </span>
+                    </div>
+                    <MintTokenDialog asset={asset}>
+                      <Button size="sm" className="w-full gradient-primary">
+                        <Coins className="w-4 h-4 mr-2" />
+                        Mint Tokens
+                      </Button>
+                    </MintTokenDialog>
+                  </div>
+                ))}
+              {readyToMint > 2 && (
+                <Button asChild variant="ghost" size="sm" className="w-full">
+                  <Link to="/assets">
+                    View All Assets <ArrowUpRight className="w-4 h-4 ml-1" />
+                  </Link>
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent Activity */}
         <Card className="gradient-card border-0 lg:col-span-2">
