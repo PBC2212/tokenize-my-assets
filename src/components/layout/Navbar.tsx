@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { LogOut, User, Wallet } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { HealthCheck } from "@/components/HealthCheck";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,11 +73,20 @@ const Navbar = () => {
             >
               Activity
             </Link>
+            <Link
+              to="/kyc"
+              className={`text-sm font-medium transition-colors hover:text-accent ${
+                isActive("/kyc") ? "text-accent" : "text-muted-foreground"
+              }`}
+            >
+              KYC
+            </Link>
           </div>
         )}
 
         {/* User Menu */}
         <div className="flex items-center space-x-4">
+          <HealthCheck />
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -13,6 +13,7 @@ import Assets from "./pages/Assets";
 import Marketplace from "./pages/Marketplace";
 import Liquidity from "./pages/Liquidity";
 import Activity from "./pages/Activity";
+import KYC from "./pages/KYC";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ const AppRoutes = () => {
       <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
       <Route path="/liquidity" element={<ProtectedRoute><Liquidity /></ProtectedRoute>} />
       <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
+      <Route path="/kyc" element={<ProtectedRoute><KYC /></ProtectedRoute>} />
       
       {/* Catch-all route */}
       <Route path="*" element={<NotFound />} />

@@ -30,6 +30,17 @@ const AssetsList = () => {
     queryFn: () => assetsApi.myAssets().then(res => res.data),
   });
 
+  // Also fetch from alternative endpoints for complete data
+  const { data: pledgedAssets = [] } = useQuery({
+    queryKey: ['pledged-assets'], 
+    queryFn: () => assetsApi.pledged().then(res => res.data),
+  });
+
+  const { data: mineAssets = [] } = useQuery({
+    queryKey: ['mine-assets'],
+    queryFn: () => assetsApi.mine().then(res => res.data),
+  });
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: { color: "bg-warning/20 text-warning", icon: Clock, label: "Pending" },
