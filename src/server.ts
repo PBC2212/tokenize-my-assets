@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
@@ -11,7 +11,7 @@ dotenv.config();
 const app = express();
 
 // Handle preflight requests first
-app.options('*', (req, res) => {
+app.options('*', (req: Request, res: Response) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin);
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
@@ -46,7 +46,7 @@ app.use(cors({
 }));
 
 // Manual headers as fallback
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
     "http://localhost:3000",
@@ -170,7 +170,7 @@ const pools = [
 ];
 
 // Authentication middleware
-const authenticateToken = (req, res, next) => {
+const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -179,7 +179,7 @@ const authenticateToken = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
     req.user = decoded;
     next();
   } catch (err) {
@@ -191,7 +191,7 @@ const authenticateToken = (req, res, next) => {
 const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
 // 1. Authentication Endpoints
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', async (req: Request, res: Response) => {
   try {
     const { email, password, name } = req.body;
     
@@ -225,7 +225,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     const user = users.get(email);
@@ -250,8 +250,8 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', authenticateToken, (req, res) => {
-  const user = Array.from(users.values()).find(u => u.id === req.user.userId);
+app.get('/api/auth/me', authenticateToken, (req: Request, res: Response) => {
+  const user = Array.from(users.values()).find((u: any) => u.id === req.user?.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
@@ -265,13 +265,14 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 });
 
 // 2. KYC Endpoints
-app.post('/api/kyc/submit', authenticateToken, upload.array('documents'), (req, res) => {
+app.post('/api/kyc/submit', authenticateToken, upload.array('documents'), (req: Request, res: Response) => {
   const submissionId = generateId();
+  const files = req.files as Express.Multer.File[];
   const submission = {
     id: submissionId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     status: 'pending',
-    documents: req.files?.map((f) => f.filename) || [],
+    documents: files?.map((f) => f.filename) || [],
     submittedAt: new Date().toISOString(),
     reviewedAt: null,
     rejectionReason: null
@@ -286,13 +287,14 @@ app.post('/api/kyc/submit', authenticateToken, upload.array('documents'), (req, 
   });
 });
 
-app.post('/api/kyc/upload', authenticateToken, upload.array('documents'), (req, res) => {
+app.post('/api/kyc/upload', authenticateToken, upload.array('documents'), (req: Request, res: Response) => {
   const submissionId = generateId();
+  const files = req.files as Express.Multer.File[];
   const submission = {
     id: submissionId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     status: 'pending',
-    documents: req.files?.map((f) => f.filename) || [],
+    documents: files?.map((f) => f.filename) || [],
     submittedAt: new Date().toISOString(),
     reviewedAt: null,
     rejectionReason: null
@@ -307,9 +309,9 @@ app.post('/api/kyc/upload', authenticateToken, upload.array('documents'), (req, 
   });
 });
 
-app.get('/api/kyc/status', authenticateToken, (req, res) => {
+app.get('/api/kyc/status', authenticateToken, (req: Request, res: Response) => {
   const submission = Array.from(kycSubmissions.values())
-    .find(s => s.userId === req.user.userId);
+    .find((s: any) => s.userId === req.user?.userId);
   
   if (!submission) {
     return res.json({
@@ -329,13 +331,13 @@ app.get('/api/kyc/status', authenticateToken, (req, res) => {
 });
 
 // 3. Asset & Tokenization Endpoints
-app.post('/api/assets/pledge', authenticateToken, (req, res) => {
+app.post('/api/assets/pledge', authenticateToken, (req: Request, res: Response) => {
   const { assetType, estimatedValue, description, documents } = req.body;
   const assetId = generateId();
   
   const asset = {
     id: assetId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     assetType: assetType,
     estimatedValue: parseFloat(estimatedValue) || 0,
     description,
@@ -353,7 +355,7 @@ app.post('/api/assets/pledge', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Asset Pledged',
     description: `Pledged ${assetType} asset worth $${(parseFloat(estimatedValue) || 0).toLocaleString()}`,
     amount: parseFloat(estimatedValue) || 0,
@@ -368,33 +370,33 @@ app.post('/api/assets/pledge', authenticateToken, (req, res) => {
   });
 });
 
-app.get('/api/assets/mine', authenticateToken, (req, res) => {
+app.get('/api/assets/mine', authenticateToken, (req: Request, res: Response) => {
   const userAssets = Array.from(assets.values())
-    .filter(asset => asset.userId === req.user.userId);
+    .filter((asset: any) => asset.userId === req.user?.userId);
   
   res.json(userAssets);
 });
 
-app.get('/api/assets/pledged', authenticateToken, (req, res) => {
+app.get('/api/assets/pledged', authenticateToken, (req: Request, res: Response) => {
   const userAssets = Array.from(assets.values())
-    .filter(asset => asset.userId === req.user.userId);
+    .filter((asset: any) => asset.userId === req.user?.userId);
   
   res.json(userAssets);
 });
 
-app.get('/api/assets/my-assets', authenticateToken, (req, res) => {
+app.get('/api/assets/my-assets', authenticateToken, (req: Request, res: Response) => {
   const userAssets = Array.from(assets.values())
-    .filter(asset => asset.userId === req.user.userId);
+    .filter((asset: any) => asset.userId === req.user?.userId);
   
   res.json(userAssets);
 });
 
-app.post('/api/assets/:id/mint', authenticateToken, (req, res) => {
+app.post('/api/assets/:id/mint', authenticateToken, (req: Request, res: Response) => {
   const { id } = req.params;
   const { tokenName, tokenSymbol, totalSupply, pricePerToken, decimals, fractional, tokenType } = req.body;
   
   const asset = assets.get(id);
-  if (!asset || asset.userId !== req.user.userId) {
+  if (!asset || asset.userId !== req.user?.userId) {
     return res.status(404).json({ error: 'Asset not found' });
   }
   
@@ -431,7 +433,7 @@ app.post('/api/assets/:id/mint', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Token Minted',
     description: `Minted ${totalSupply} ${tokenSymbol} tokens for ${asset.assetType}`,
     amount: parseFloat(pricePerToken) * parseInt(totalSupply),
@@ -448,11 +450,11 @@ app.post('/api/assets/:id/mint', authenticateToken, (req, res) => {
   });
 });
 
-app.get('/api/assets/marketplace', authenticateToken, (req, res) => {
+app.get('/api/assets/marketplace', authenticateToken, (req: Request, res: Response) => {
   const marketplaceAssets = Array.from(assets.values())
-    .filter(asset => asset.status === 'tokenized')
-    .map(asset => {
-      const token = Array.from(tokens.values()).find(t => t.assetId === asset.id);
+    .filter((asset: any) => asset.status === 'tokenized')
+    .map((asset: any) => {
+      const token = Array.from(tokens.values()).find((t: any) => t.assetId === asset.id);
       return {
         id: asset.id,
         tokenId: token?.id,
@@ -471,7 +473,7 @@ app.get('/api/assets/marketplace', authenticateToken, (req, res) => {
 });
 
 // 4. Marketplace Endpoints
-app.get('/api/marketplace/listings', authenticateToken, (req, res) => {
+app.get('/api/marketplace/listings', authenticateToken, (req: Request, res: Response) => {
   const listings = [
     {
       id: "listing1",
@@ -514,7 +516,7 @@ app.get('/api/marketplace/listings', authenticateToken, (req, res) => {
   res.json(listings);
 });
 
-app.post('/api/marketplace/buy', authenticateToken, (req, res) => {
+app.post('/api/marketplace/buy', authenticateToken, (req: Request, res: Response) => {
   const { tokenId, amount } = req.body;
   const transactionId = generateId();
   
@@ -522,7 +524,7 @@ app.post('/api/marketplace/buy', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Token Purchase',
     description: `Bought ${amount} tokens`,
     amount: amount,
@@ -537,7 +539,7 @@ app.post('/api/marketplace/buy', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/marketplace/buy/:tokenId', authenticateToken, (req, res) => {
+app.post('/api/marketplace/buy/:tokenId', authenticateToken, (req: Request, res: Response) => {
   const { tokenId } = req.params;
   const { amount } = req.body;
   const transactionId = generateId();
@@ -546,7 +548,7 @@ app.post('/api/marketplace/buy/:tokenId', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Token Purchase',
     description: `Bought ${amount} tokens (${tokenId})`,
     amount: amount,
@@ -561,7 +563,7 @@ app.post('/api/marketplace/buy/:tokenId', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/marketplace/sell', authenticateToken, (req, res) => {
+app.post('/api/marketplace/sell', authenticateToken, (req: Request, res: Response) => {
   const { tokenId, amount, price } = req.body;
   const listingId = generateId();
   
@@ -569,7 +571,7 @@ app.post('/api/marketplace/sell', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Token Sale',
     description: `Listed ${amount} tokens for sale at $${price}`,
     amount: amount,
@@ -584,7 +586,7 @@ app.post('/api/marketplace/sell', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/marketplace/sell/:tokenId', authenticateToken, (req, res) => {
+app.post('/api/marketplace/sell/:tokenId', authenticateToken, (req: Request, res: Response) => {
   const { tokenId } = req.params;
   const { amount, price } = req.body;
   const listingId = generateId();
@@ -593,7 +595,7 @@ app.post('/api/marketplace/sell/:tokenId', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Token Sale',
     description: `Listed ${amount} tokens for sale at $${price} (${tokenId})`,
     amount: amount,
@@ -609,11 +611,11 @@ app.post('/api/marketplace/sell/:tokenId', authenticateToken, (req, res) => {
 });
 
 // 5. Liquidity Pool Endpoints
-app.get('/api/liquidity/pools', authenticateToken, (req, res) => {
+app.get('/api/liquidity/pools', authenticateToken, (req: Request, res: Response) => {
   res.json(pools);
 });
 
-app.post('/api/liquidity/provide', authenticateToken, (req, res) => {
+app.post('/api/liquidity/provide', authenticateToken, (req: Request, res: Response) => {
   const { poolId, amount } = req.body;
   const transactionId = generateId();
   
@@ -621,7 +623,7 @@ app.post('/api/liquidity/provide', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Liquidity Provided',
     description: `Provided $${amount?.toLocaleString()} to liquidity pool`,
     amount: amount,
@@ -637,7 +639,7 @@ app.post('/api/liquidity/provide', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/liquidity/add', authenticateToken, (req, res) => {
+app.post('/api/liquidity/add', authenticateToken, (req: Request, res: Response) => {
   const { poolId, amount } = req.body;
   const transactionId = generateId();
   
@@ -645,7 +647,7 @@ app.post('/api/liquidity/add', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Liquidity Added',
     description: `Added $${amount?.toLocaleString()} to liquidity pool`,
     amount: amount,
@@ -661,7 +663,7 @@ app.post('/api/liquidity/add', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/liquidity/withdraw', authenticateToken, (req, res) => {
+app.post('/api/liquidity/withdraw', authenticateToken, (req: Request, res: Response) => {
   const { poolId, amount } = req.body;
   const transactionId = generateId();
   
@@ -669,7 +671,7 @@ app.post('/api/liquidity/withdraw', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Liquidity Withdrawn',
     description: `Withdrew $${amount?.toLocaleString()} from liquidity pool`,
     amount: amount,
@@ -684,7 +686,7 @@ app.post('/api/liquidity/withdraw', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/liquidity/remove', authenticateToken, (req, res) => {
+app.post('/api/liquidity/remove', authenticateToken, (req: Request, res: Response) => {
   const { poolId, amount } = req.body;
   const transactionId = generateId();
   
@@ -692,7 +694,7 @@ app.post('/api/liquidity/remove', authenticateToken, (req, res) => {
   const activityId = generateId();
   activities.set(activityId, {
     id: activityId,
-    userId: req.user.userId,
+    userId: req.user?.userId,
     type: 'Liquidity Removed',
     description: `Removed $${amount?.toLocaleString()} from liquidity pool`,
     amount: amount,
@@ -708,24 +710,24 @@ app.post('/api/liquidity/remove', authenticateToken, (req, res) => {
 });
 
 // 6. Activity Endpoints
-app.get('/api/activity/mine', authenticateToken, (req, res) => {
+app.get('/api/activity/mine', authenticateToken, (req: Request, res: Response) => {
   const userActivities = Array.from(activities.values())
-    .filter(activity => activity.userId === req.user.userId)
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    .filter((activity: any) => activity.userId === req.user?.userId)
+    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   
   res.json(userActivities);
 });
 
-app.get('/api/activity/my-activity', authenticateToken, (req, res) => {
+app.get('/api/activity/my-activity', authenticateToken, (req: Request, res: Response) => {
   const userActivities = Array.from(activities.values())
-    .filter(activity => activity.userId === req.user.userId)
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    .filter((activity: any) => activity.userId === req.user?.userId)
+    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   
   res.json(userActivities);
 });
 
 // 7. Health Check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -734,7 +736,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Root endpoint with comprehensive API documentation
-app.get('/', (req, res) => {
+app.get('/', (req: Request, res: Response) => {
   res.json({
     message: "RWA Tokenization Backend API",
     version: "1.0.0",
@@ -791,7 +793,7 @@ app.get('/', (req, res) => {
 });
 
 // Enhanced error handling
-app.use((err, req, res, next) => {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('Error occurred:', err.stack);
   
   // Handle specific error types
@@ -818,7 +820,7 @@ app.use((err, req, res, next) => {
 });
 
 // Handle 404 routes
-app.use('*', (req, res) => {
+app.use('*', (req: Request, res: Response) => {
   res.status(404).json({
     error: 'Route not found',
     path: req.originalUrl,
