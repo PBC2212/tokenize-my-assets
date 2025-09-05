@@ -1,0 +1,303 @@
+import { useState } from "react";
+import { Routes, Route, Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { assetsApi } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import { 
+  Building2, 
+  Plus, 
+  Upload, 
+  FileText, 
+  DollarSign,
+  Calendar,
+  ArrowLeft,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Coins
+} from "lucide-react";
+
+const AssetsList = () => {
+  const { data: assets = [], isLoading } = useQuery({
+    queryKey: ['my-assets'],
+    queryFn: () => assetsApi.myAssets().then(res => res.data),
+  });
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { color: "bg-warning/20 text-warning", icon: Clock, label: "Pending" },
+      under_review: { color: "bg-accent/20 text-accent", icon: Clock, label: "Under Review" },
+      approved: { color: "bg-success/20 text-success", icon: CheckCircle, label: "Approved" },
+      rejected: { color: "bg-destructive/20 text-destructive", icon: AlertCircle, label: "Rejected" },
+      tokenized: { color: "bg-primary/20 text-primary", icon: Coins, label: "Tokenized" }
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const Icon = config.icon;
+
+    return (
+      <Badge className={`${config.color} border-0`}>
+        <Icon className="w-3 h-3 mr-1" />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-muted/50 rounded w-1/4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-64 bg-muted/50 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            My Assets
+          </h1>
+          <p className="text-muted-foreground">
+            Manage your pledged assets and tokenization status
+          </p>
+        </div>
+        <Button asChild className="gradient-primary">
+          <Link to="/assets/pledge">
+            <Plus className="w-4 h-4 mr-2" />
+            Pledge Asset
+          </Link>
+        </Button>
+      </div>
+
+      {assets.length === 0 ? (
+        <Card className="gradient-card border-0">
+          <CardContent className="py-16 text-center">
+            <Building2 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-2">No Assets Yet</h3>
+            <p className="text-muted-foreground mb-6">
+              Start by pledging your first real-world asset for tokenization
+            </p>
+            <Button asChild className="gradient-primary">
+              <Link to="/assets/pledge">
+                <Plus className="w-4 h-4 mr-2" />
+                Pledge Your First Asset
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {assets.map((asset: any) => (
+            <Card key={asset.id} className="gradient-card border-0 hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">{asset.assetType}</CardTitle>
+                  {getStatusBadge(asset.status)}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Description</p>
+                  <p className="text-sm">{asset.description}</p>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="w-4 h-4 text-success" />
+                  <span className="font-semibold text-success">
+                    ${asset.estimatedValue?.toLocaleString() || 0}
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <Calendar className="w-4 h-4" />
+                  <span>
+                    Submitted {new Date(asset.submittedAt).toLocaleDateString()}
+                  </span>
+                </div>
+
+                {asset.status === 'approved' && (
+                  <Button size="sm" className="w-full gradient-primary">
+                    <Coins className="w-4 h-4 mr-2" />
+                    Mint Tokens
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const PledgeAsset = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState({
+    assetType: "",
+    estimatedValue: "",
+    description: "",
+  });
+  const [documents, setDocuments] = useState<File[]>([]);
+
+  const pledgeMutation = useMutation({
+    mutationFn: assetsApi.pledge,
+    onSuccess: () => {
+      toast({
+        title: "Asset Pledged Successfully",
+        description: "Your asset has been submitted for review.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['my-assets'] });
+      navigate('/assets');
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to Pledge Asset",
+        description: error.response?.data?.error || "Something went wrong",
+      });
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const data = {
+      ...formData,
+      estimatedValue: parseFloat(formData.estimatedValue),
+      documents: documents.map(f => f.name)
+    };
+    
+    pledgeMutation.mutate(data);
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/assets')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Assets
+          </Button>
+        </div>
+
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            Pledge New Asset
+          </h1>
+          <p className="text-muted-foreground">
+            Submit your real-world asset for tokenization review
+          </p>
+        </div>
+
+        <Card className="gradient-card border-0">
+          <CardHeader>
+            <CardTitle>Asset Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="assetType">Asset Type</Label>
+                <Select 
+                  value={formData.assetType} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, assetType: value }))}
+                >
+                  <SelectTrigger className="bg-muted/50 border-border/50">
+                    <SelectValue placeholder="Select asset type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Real Estate">Real Estate</SelectItem>
+                    <SelectItem value="Gold">Gold & Precious Metals</SelectItem>
+                    <SelectItem value="Art & Collectibles">Art & Collectibles</SelectItem>
+                    <SelectItem value="Commodities">Commodities</SelectItem>
+                    <SelectItem value="Equipment">Industrial Equipment</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="estimatedValue">Estimated Value (USD)</Label>
+                <Input
+                  id="estimatedValue"
+                  type="number"
+                  value={formData.estimatedValue}
+                  onChange={(e) => setFormData(prev => ({ ...prev, estimatedValue: e.target.value }))}
+                  placeholder="Enter estimated value"
+                  required
+                  className="bg-muted/50 border-border/50"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Asset Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Provide detailed information about your asset..."
+                  rows={4}
+                  required
+                  className="bg-muted/50 border-border/50"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Supporting Documents</Label>
+                <div className="border-2 border-dashed border-border/50 rounded-lg p-6 text-center">
+                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Upload ownership documents, appraisals, certificates
+                  </p>
+                  <Button type="button" variant="outline" size="sm">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Choose Files
+                  </Button>
+                </div>
+                {documents.length > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {documents.length} file(s) selected
+                  </div>
+                )}
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full gradient-primary" 
+                disabled={pledgeMutation.isPending}
+              >
+                {pledgeMutation.isPending ? "Submitting..." : "Submit for Review"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const Assets = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<AssetsList />} />
+      <Route path="/pledge" element={<PledgeAsset />} />
+    </Routes>
+  );
+};
+
+export default Assets;
