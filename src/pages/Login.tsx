@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, Navigate } from "react-router-dom";
-import { Wallet, Eye, EyeOff } from "lucide-react";
+import { Wallet, Eye, EyeOff, ArrowLeft } from "lucide-react";
 
 const Login = () => {
   const { user, login } = useAuth();
@@ -33,6 +33,16 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
+        {/* Back to Home Link */}
+        <div className="text-center">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Link>
+          </Button>
+        </div>
+
         {/* Logo */}
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-primary rounded-2xl mb-4 animate-pulse-glow">
