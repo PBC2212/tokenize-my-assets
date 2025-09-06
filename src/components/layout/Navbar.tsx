@@ -81,6 +81,14 @@ const Navbar = () => {
             >
               KYC
             </Link>
+            <Link
+              to="/wallet"
+              className={`text-sm font-medium transition-colors hover:text-accent ${
+                isActive("/wallet") ? "text-accent" : "text-muted-foreground"
+              }`}
+            >
+              Wallet
+            </Link>
           </div>
         )}
 

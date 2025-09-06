@@ -428,6 +428,55 @@ export const activityApi = {
   },
 };
 
+// Wallet API
+export const walletApi = {
+  verify: async (data: { 
+    walletAddress: string; 
+    signature: string; 
+    message: string; 
+    nonce: string; 
+  }): Promise<{ data: any }> => {
+    const { data: result, error } = await supabase.functions.invoke('wallet-verification', {
+      body: data
+    });
+    
+    if (error) throw error;
+    return { data: result };
+  },
+
+  getTransactions: async (): Promise<{ data: any[] }> => {
+    const { data, error } = await supabase.functions.invoke('wallet-transactions');
+    
+    if (error) throw error;
+    return { data: data.transactions || [] };
+  },
+
+  recordTransaction: async (transactionData: {
+    transactionHash: string;
+    walletAddress: string;
+    fromAddress: string;
+    toAddress: string;
+    valueWei: string;
+    valueEth?: number;
+    gasUsed?: number;
+    gasPrice?: string;
+    blockNumber?: number;
+    blockHash?: string;
+    chainId?: number;
+    transactionType?: string;
+    tokenContractAddress?: string;
+    tokenSymbol?: string;
+    tokenDecimals?: number;
+  }): Promise<{ data: any }> => {
+    const { data, error } = await supabase.functions.invoke('wallet-transactions', {
+      body: transactionData,
+    });
+    
+    if (error) throw error;
+    return { data };
+  },
+};
+
 // Health API - using Supabase
 export const healthApi = {
   check: async () => {

@@ -497,6 +497,120 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_connections: {
+        Row: {
+          chain_id: number
+          connected_at: string
+          created_at: string
+          id: string
+          is_verified: boolean
+          last_activity: string
+          nonce: string | null
+          signature: string | null
+          updated_at: string
+          user_id: string
+          wallet_address: string
+          wallet_type: string
+        }
+        Insert: {
+          chain_id?: number
+          connected_at?: string
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          last_activity?: string
+          nonce?: string | null
+          signature?: string | null
+          updated_at?: string
+          user_id: string
+          wallet_address: string
+          wallet_type?: string
+        }
+        Update: {
+          chain_id?: number
+          connected_at?: string
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          last_activity?: string
+          nonce?: string | null
+          signature?: string | null
+          updated_at?: string
+          user_id?: string
+          wallet_address?: string
+          wallet_type?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          block_hash: string | null
+          block_number: number | null
+          chain_id: number
+          created_at: string
+          from_address: string
+          gas_price: string | null
+          gas_used: number | null
+          id: string
+          status: string
+          to_address: string
+          token_contract_address: string | null
+          token_decimals: number | null
+          token_symbol: string | null
+          transaction_hash: string
+          transaction_type: string
+          updated_at: string
+          user_id: string
+          value_eth: number | null
+          value_wei: string
+          wallet_address: string
+        }
+        Insert: {
+          block_hash?: string | null
+          block_number?: number | null
+          chain_id?: number
+          created_at?: string
+          from_address: string
+          gas_price?: string | null
+          gas_used?: number | null
+          id?: string
+          status?: string
+          to_address: string
+          token_contract_address?: string | null
+          token_decimals?: number | null
+          token_symbol?: string | null
+          transaction_hash: string
+          transaction_type?: string
+          updated_at?: string
+          user_id: string
+          value_eth?: number | null
+          value_wei: string
+          wallet_address: string
+        }
+        Update: {
+          block_hash?: string | null
+          block_number?: number | null
+          chain_id?: number
+          created_at?: string
+          from_address?: string
+          gas_price?: string | null
+          gas_used?: number | null
+          id?: string
+          status?: string
+          to_address?: string
+          token_contract_address?: string | null
+          token_decimals?: number | null
+          token_symbol?: string | null
+          transaction_hash?: string
+          transaction_type?: string
+          updated_at?: string
+          user_id?: string
+          value_eth?: number | null
+          value_wei?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       assets_public_summary: {
