@@ -37,7 +37,11 @@ serve(async (req) => {
       throw new Error('Invalid authentication token')
     }
 
-    const { type, poolId, amount, walletAddress, transactionHash }: LiquidityRequest = await req.json()
+    const body = await req.text()
+    if (!body.trim()) {
+      throw new Error('Request body is empty')
+    }
+    const { type, poolId, amount, walletAddress, transactionHash }: LiquidityRequest = JSON.parse(body)
 
     if (!type || !poolId || !amount || amount <= 0) {
       throw new Error('Missing or invalid required fields')

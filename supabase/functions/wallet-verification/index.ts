@@ -39,7 +39,11 @@ serve(async (req) => {
       throw new Error('Invalid authentication token')
     }
 
-    const { walletAddress, signature, message, nonce }: WalletVerificationRequest = await req.json()
+    const body = await req.text()
+    if (!body.trim()) {
+      throw new Error('Request body is empty')
+    }
+    const { walletAddress, signature, message, nonce }: WalletVerificationRequest = JSON.parse(body)
 
     if (!walletAddress || !signature || !message || !nonce) {
       throw new Error('Missing required parameters')

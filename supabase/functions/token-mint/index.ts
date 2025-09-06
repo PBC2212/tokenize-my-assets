@@ -40,6 +40,10 @@ serve(async (req) => {
       throw new Error('Invalid authentication token')
     }
 
+    const body = await req.text()
+    if (!body.trim()) {
+      throw new Error('Request body is empty')
+    }
     const { 
       assetId, 
       tokenName, 
@@ -49,7 +53,7 @@ serve(async (req) => {
       decimals,
       walletAddress,
       transactionHash 
-    }: TokenMintRequest = await req.json()
+    }: TokenMintRequest = JSON.parse(body)
 
     // Validate input
     if (!assetId || !tokenName || !tokenSymbol || !totalSupply || !pricePerToken || totalSupply <= 0 || pricePerToken <= 0) {

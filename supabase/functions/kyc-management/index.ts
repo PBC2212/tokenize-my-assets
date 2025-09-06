@@ -76,7 +76,11 @@ serve(async (req) => {
 
     if (req.method === 'POST') {
       // Submit KYC
-      const { documents, personalInfo, walletAddress }: KYCRequest = await req.json()
+      const body = await req.text()
+      if (!body.trim()) {
+        throw new Error('Request body is empty')
+      }
+      const { documents, personalInfo, walletAddress }: KYCRequest = JSON.parse(body)
 
       // Check if user already has a pending or approved KYC
       const { data: existingKYC } = await supabaseClient

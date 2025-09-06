@@ -31,8 +31,8 @@ const Wallet = () => {
     
     setLoading(true);
     try {
-      const { data } = await walletApi.getTransactions();
-      setTransactions(data);
+      const response = await walletApi.getTransactions() as any;
+      setTransactions(response.transactions || response.data || []);
     } catch (error: any) {
       console.error('Error loading transactions:', error);
       toast.error('Failed to load wallet transactions');

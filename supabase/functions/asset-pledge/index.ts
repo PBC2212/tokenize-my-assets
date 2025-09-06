@@ -37,7 +37,11 @@ serve(async (req) => {
       throw new Error('Invalid authentication token')
     }
 
-    const { assetType, description, estimatedValue, documents, walletAddress }: AssetPledgeRequest = await req.json()
+    const body = await req.text()
+    if (!body.trim()) {
+      throw new Error('Request body is empty')
+    }
+    const { assetType, description, estimatedValue, documents, walletAddress }: AssetPledgeRequest = JSON.parse(body)
 
     // Validate input
     if (!assetType || !description || !estimatedValue || estimatedValue <= 0) {

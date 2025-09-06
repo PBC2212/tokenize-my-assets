@@ -78,7 +78,11 @@ serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      const transactionData: TransactionRequest = await req.json()
+      const body = await req.text()
+      if (!body.trim()) {
+        throw new Error('Request body is empty')
+      }
+      const transactionData: TransactionRequest = JSON.parse(body)
 
       // Validate required fields
       if (!transactionData.transactionHash || !transactionData.walletAddress) {
