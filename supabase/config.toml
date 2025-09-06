@@ -3,6 +3,9 @@ project_id = "gmirigexmcukcbvzywtc"
 [functions.asset-pledge]
 verify_jwt = true
 
+[functions.asset-approval]
+verify_jwt = true
+
 [functions.token-mint]
 verify_jwt = true
 

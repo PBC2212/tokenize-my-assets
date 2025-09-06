@@ -181,6 +181,15 @@ export const assetsApi = {
     if (error) throw error;
     return { data: data || [] };
   },
+
+  // Approve or reject an asset (admin function)
+  approve: async (assetId: string, action: 'approve' | 'reject', rejectionReason?: string) => {
+    const response = await supabase.functions.invoke('asset-approval', {
+      body: { assetId, action, rejectionReason }
+    });
+    if (response.error) throw response.error;
+    return response;
+  },
   
   pledged: async () => {
     return assetsApi.mine();

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { assetsApi, marketplaceApi, activityApi, dashboardApi } from "@/lib/api";
 import { useWallet } from "@/hooks/useWallet";
 import WalletConnect from "@/components/WalletConnect";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   TrendingUp, 
   Wallet, 
@@ -73,6 +74,21 @@ const Dashboard = () => {
     queryKey: ['market-overview'],
     queryFn: () => dashboardApi.marketOverview().then(res => res.data),
     enabled: !!user,
+  });
+
+  const { data: readyToMintAssets, isLoading: mintAssetsLoading } = useQuery({
+    queryKey: ['ready-to-mint-assets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_assets')
+        .select('*')
+        .eq('status', 'approved')
+        .order('approved_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user && !!wallet.isConnected,
   });
 
   // Keep existing queries for backward compatibility
@@ -312,6 +328,12 @@ const Dashboard = () => {
                 Add Liquidity
               </Link>
             </Button>
+            <Button asChild variant="secondary" className="w-full">
+              <Link to="/admin/assets">
+                <Building2 className="w-4 h-4 mr-2" />
+                Asset Review (Admin)
+              </Link>
+            </Button>
           </CardContent>
         </Card>
 
@@ -346,45 +368,57 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Ready to Mint Assets */}
-        {readyToMint.length > 0 && (
-          <Card className="gradient-card border-0 border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Zap className="w-5 h-5 text-primary" />
-                <span>Ready to Mint</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                You have {readyToMint.length} approved asset{readyToMint.length !== 1 ? 's' : ''} ready for tokenization
-              </p>
-              {readyToMint.slice(0, 2).map((asset: any) => (
-                <div key={asset.id} className="p-3 rounded-lg bg-muted/20 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{asset.assetType}</span>
-                    <span className="text-sm text-success font-semibold">
-                      ${asset.estimatedValue?.toLocaleString()}
-                    </span>
+      {/* Ready to Mint Assets */}
+      {wallet.isConnected && (
+        <Card className="gradient-card border-0">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Coins className="h-6 w-6 text-primary" />
+              Ready to Mint
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {mintAssetsLoading ? (
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-muted rounded w-3/4"></div>
+                <div className="h-4 bg-muted rounded w-1/2"></div>
+              </div>
+            ) : readyToMintAssets && readyToMintAssets.length > 0 ? (
+              <div className="space-y-4">
+                {readyToMintAssets.slice(0, 3).map((asset: any) => (
+                  <div key={asset.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-foreground">{asset.asset_type}</p>
+                      <p className="text-sm text-muted-foreground">${asset.estimated_value?.toLocaleString()}</p>
+                      <p className="text-xs text-green-600 font-medium">✓ Approved for tokenization</p>
+                    </div>
+                    <MintTokenDialog asset={asset}>
+                      <Button size="sm" className="bg-primary hover:bg-primary/90">
+                        <Coins className="w-4 h-4 mr-2" />
+                        Mint Tokens
+                      </Button>
+                    </MintTokenDialog>
                   </div>
-                  <MintTokenDialog asset={asset}>
-                    <Button size="sm" className="w-full gradient-primary">
-                      <Coins className="w-4 h-4 mr-2" />
-                      Mint Tokens
-                    </Button>
-                  </MintTokenDialog>
-                </div>
-              ))}
-              {readyToMint.length > 2 && (
-                <Button asChild variant="ghost" size="sm" className="w-full">
-                  <Link to="/assets">
-                    View All Assets <ArrowUpRight className="w-4 h-4 ml-1" />
-                  </Link>
+                ))}
+                {readyToMintAssets.length > 3 && (
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link to="/assets">View All ({readyToMintAssets.length})</Link>
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Coins className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No assets ready for minting yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Assets must be approved before minting</p>
+                <Button variant="outline" className="mt-4" asChild>
+                  <Link to="/assets">Pledge an Asset</Link>
                 </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
       </div>
 
       {/* Recent Activity - Now using paginated endpoint */}

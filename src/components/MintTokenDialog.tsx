@@ -21,13 +21,7 @@ import {
 } from "lucide-react";
 
 interface MintTokenDialogProps {
-  asset: {
-    id: string;
-    assetType: string;
-    description: string;
-    estimatedValue: number;
-    status: string;
-  };
+  asset: any;
   children: React.ReactNode;
 }
 
@@ -144,12 +138,13 @@ export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
     mintMutation.mutate(data);
   };
 
-  const suggestedTokenSymbol = asset.assetType === 'Real Estate' ? 'RET' : 
-                               asset.assetType === 'Gold' ? 'GLD' :
-                               asset.assetType === 'Art & Collectibles' ? 'ART' : 'RWA';
+  const suggestedTokenSymbol = (asset.asset_type || asset.assetType) === 'Real Estate' ? 'RET' : 
+                                (asset.asset_type || asset.assetType) === 'Gold' ? 'GLD' :
+                                (asset.asset_type || asset.assetType) === 'Art & Collectibles' ? 'ART' : 'RWA';
 
-  const suggestedSupply = Math.floor(asset.estimatedValue / 100); // $100 per token suggestion
-  const suggestedPrice = asset.estimatedValue / suggestedSupply;
+  const estimatedValue = asset.estimated_value || asset.estimatedValue;
+  const suggestedSupply = Math.floor(estimatedValue / 100); // $100 per token suggestion
+  const suggestedPrice = estimatedValue / suggestedSupply;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -169,13 +164,13 @@ export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
           <div className="p-4 rounded-lg bg-muted/20 space-y-3">
             <div className="flex items-center space-x-2">
               <Building2 className="w-4 h-4 text-accent" />
-              <span className="font-medium">{asset.assetType}</span>
+              <span className="font-medium">{asset.asset_type || asset.assetType}</span>
             </div>
             <p className="text-sm text-muted-foreground">{asset.description}</p>
             <div className="flex items-center space-x-2">
               <DollarSign className="w-4 h-4 text-success" />
               <span className="font-semibold text-success">
-                ${asset.estimatedValue.toLocaleString()}
+                ${(asset.estimated_value || asset.estimatedValue).toLocaleString()}
               </span>
             </div>
           </div>
@@ -188,7 +183,7 @@ export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
                   id="tokenName"
                   value={mintData.tokenName}
                   onChange={(e) => setMintData(prev => ({ ...prev, tokenName: e.target.value }))}
-                  placeholder={`${asset.assetType} Token`}
+                  placeholder={`${asset.asset_type || asset.assetType} Token`}
                   required
                   className="bg-muted/50 border-border/50"
                 />
