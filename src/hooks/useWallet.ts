@@ -90,13 +90,15 @@ export const useWallet = () => {
         .from('wallet_connections')
         .upsert({
           user_id: user.id,
-          wallet_address: address,
+          wallet_address: address.toLowerCase(),
           wallet_type: 'metamask',
           chain_id: Number(network.chainId),
           is_verified: true,
           signature: signature,
           nonce: nonce,
           last_activity: new Date().toISOString(),
+        }, {
+          onConflict: 'wallet_address'
         });
 
       if (error) {
