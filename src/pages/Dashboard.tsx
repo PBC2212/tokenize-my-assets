@@ -91,7 +91,7 @@ const Dashboard = () => {
       {/* Welcome Section */}
       <div className="space-y-2">
         <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          Welcome back, {user?.name}
+          Welcome back, {user?.user_metadata?.name || user?.email?.split('@')[0]}!
         </h1>
         <p className="text-muted-foreground">
           Manage your tokenized assets and explore new investment opportunities.

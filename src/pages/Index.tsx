@@ -60,10 +60,10 @@ const Index = () => {
           
           <div className="flex items-center space-x-4">
             <Button variant="outline" asChild>
-              <Link to="/login">Login</Link>
+              <Link to="/auth">Login</Link>
             </Button>
             <Button asChild className="gradient-primary">
-              <Link to="/register">Get Started</Link>
+              <Link to="/auth">Get Started</Link>
             </Button>
           </div>
         </div>
@@ -96,7 +96,7 @@ const Index = () => {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild className="gradient-primary text-lg px-8 py-6 glow-primary">
-                <Link to="/register">
+                <Link to="/auth">
                   Start Tokenizing
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Link>
@@ -179,7 +179,7 @@ const Index = () => {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" asChild className="gradient-primary">
-                  <Link to="/register">
+                  <Link to="/auth">
                     Create Account
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Link>

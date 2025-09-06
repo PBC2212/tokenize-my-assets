@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
@@ -92,16 +92,16 @@ const Navbar = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="secondary" size="sm" className="flex items-center space-x-2">
                   <User className="w-4 h-4" />
-                  <span className="hidden sm:block">{user.name}</span>
+                  <span className="hidden sm:block">{user.user_metadata?.name || user.email}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5 text-sm">
-                  <p className="font-medium">{user.name}</p>
+                  <p className="font-medium">{user.user_metadata?.name || user.email}</p>
                   <p className="text-muted-foreground">{user.email}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
                   <LogOut className="w-4 h-4 mr-2" />
                   Log out
                 </DropdownMenuItem>
@@ -110,10 +110,10 @@ const Navbar = () => {
           ) : (
             <div className="flex items-center space-x-2">
               <Button variant="outline" asChild>
-                <Link to="/login">Login</Link>
+                <Link to="/auth">Login</Link>
               </Button>
               <Button asChild className="gradient-primary">
-                <Link to="/register">Get Started</Link>
+                <Link to="/auth">Get Started</Link>
               </Button>
             </div>
           )}

@@ -90,7 +90,7 @@ const KYC = () => {
     if (documents.selfie) formData.append('documents', documents.selfie);
 
     if (uploadMethod === 'submit') {
-      submitMutation.mutate(formData);
+      submitMutation.mutate({ documents: [] });
     } else {
       uploadMutation.mutate(formData);
     }
@@ -167,20 +167,20 @@ const KYC = () => {
               </Alert>
             )}
             
-            {kycStatus.status === 'rejected' && kycStatus.rejectionReason && (
+            {kycStatus.status === 'rejected' && kycStatus.rejection_reason && (
               <Alert className="border-destructive/20 bg-destructive/10">
                 <AlertCircle className="h-4 w-4 text-destructive" />
                 <AlertDescription className="text-destructive">
-                  <strong>Rejection Reason:</strong> {kycStatus.rejectionReason}
+                  <strong>Rejection Reason:</strong> {kycStatus.rejection_reason}
                 </AlertDescription>
               </Alert>
             )}
 
-            {kycStatus.submittedAt && (
+            {kycStatus.submitted_at && (
               <div className="text-sm text-muted-foreground">
-                <p>Submitted: {new Date(kycStatus.submittedAt).toLocaleString()}</p>
-                {kycStatus.reviewedAt && (
-                  <p>Reviewed: {new Date(kycStatus.reviewedAt).toLocaleString()}</p>
+                <p>Submitted: {new Date(kycStatus.submitted_at).toLocaleString()}</p>
+                {kycStatus.reviewed_at && (
+                  <p>Reviewed: {new Date(kycStatus.reviewed_at).toLocaleString()}</p>
                 )}
               </div>
             )}
