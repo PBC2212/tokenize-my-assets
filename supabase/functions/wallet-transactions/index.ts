@@ -79,8 +79,8 @@ serve(async (req) => {
 
     if (req.method === 'POST') {
       const body = await req.text()
-      if (!body.trim()) {
-        throw new Error('Request body is empty')
+      if (!body || !body.trim()) {
+        throw new Error('Request body is required for POST requests')
       }
       const transactionData: TransactionRequest = JSON.parse(body)
 

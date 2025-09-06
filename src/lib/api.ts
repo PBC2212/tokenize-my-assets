@@ -393,7 +393,9 @@ export const walletApi = {
   },
 
   getTransactions: async (): Promise<{ data: any[] }> => {
-    const { data, error } = await supabase.functions.invoke('wallet-transactions');
+    const { data, error } = await supabase.functions.invoke('wallet-transactions', {
+      method: 'GET'
+    });
     
     if (error) throw error;
     return { data: data.transactions || [] };
