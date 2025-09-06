@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { ethers } from 'https://esm.sh/ethers@6.7.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,9 +12,24 @@ interface TradeRequest {
   tokenId: string;
   amount: number;
   price?: number;
-  walletAddress?: string;
-  transactionHash?: string;
+  walletAddress: string;
+  transactionHash: string;
 }
+
+// ERC20 ABI for token transfers
+const ERC20_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function totalSupply() view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)",
+  "function transferFrom(address from, address to, uint256 amount) returns (bool)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "event Transfer(address indexed from, address indexed to, uint256 value)",
+  "event Approval(address indexed owner, address indexed spender, uint256 value)"
+];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -44,26 +60,30 @@ serve(async (req) => {
     }
     const { type, tokenId, amount, price, walletAddress, transactionHash }: TradeRequest = JSON.parse(body)
 
-    if (!type || !tokenId || !amount || amount <= 0) {
-      throw new Error('Missing or invalid required fields')
+    if (!type || !tokenId || !amount || !walletAddress || !transactionHash || amount <= 0) {
+      throw new Error('Missing or invalid required fields including wallet address and transaction hash')
     }
 
-    // Verify wallet connection if provided
-    let verifiedWallet = null;
-    if (walletAddress) {
-      const { data: walletConnection, error: walletError } = await supabaseClient
-        .from('wallet_connections')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('wallet_address', walletAddress.toLowerCase())
-        .eq('is_verified', true)
-        .single()
+    // Verify wallet connection
+    const { data: walletConnection, error: walletError } = await supabaseClient
+      .from('wallet_connections')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('wallet_address', walletAddress.toLowerCase())
+      .eq('is_verified', true)
+      .single()
 
-      if (walletError || !walletConnection) {
-        throw new Error('Wallet not connected or verified')
-      }
-      verifiedWallet = walletConnection;
+    if (walletError || !walletConnection) {
+      throw new Error('Wallet not connected or verified')
     }
+
+    // Connect to Ethereum network
+    const rpcUrl = Deno.env.get('ETHEREUM_RPC_URL')
+    if (!rpcUrl) {
+      throw new Error('Ethereum RPC URL not configured')
+    }
+
+    const provider = new ethers.JsonRpcProvider(rpcUrl)
 
     if (type === 'buy') {
       // Handle buy order
@@ -84,6 +104,53 @@ serve(async (req) => {
 
       const totalCost = amount * listing.price_per_token;
 
+      // Verify transaction on blockchain
+      try {
+        const transaction = await provider.getTransaction(transactionHash)
+        if (!transaction) {
+          throw new Error('Transaction not found on blockchain')
+        }
+
+        const receipt = await provider.getTransactionReceipt(transactionHash)
+        if (!receipt) {
+          throw new Error('Transaction receipt not found')
+        }
+
+        if (receipt.status !== 1) {
+          throw new Error('Transaction failed on blockchain')
+        }
+
+        // Verify this is a token transfer to the buyer
+        const tokenContract = new ethers.Contract(listing.tokens.contract_address, ERC20_ABI, provider)
+        
+        // Parse Transfer events from the transaction
+        const transferLogs = receipt.logs.filter(log => {
+          try {
+            const parsed = tokenContract.interface.parseLog(log)
+            return parsed?.name === 'Transfer'
+          } catch {
+            return false
+          }
+        })
+
+        if (transferLogs.length === 0) {
+          throw new Error('No token transfer found in transaction')
+        }
+
+        const transferEvent = tokenContract.interface.parseLog(transferLogs[0])
+        const transferAmount = ethers.formatUnits(transferEvent.args.value, listing.tokens.decimals)
+        
+        console.log(`Verified token transfer: ${transferAmount} ${listing.tokens.token_symbol} to ${transferEvent.args.to}`)
+        
+        if (parseFloat(transferAmount) < amount) {
+          throw new Error(`Insufficient token transfer amount: expected ${amount}, got ${transferAmount}`)
+        }
+
+      } catch (error) {
+        console.error('Blockchain verification error:', error)
+        throw new Error(`Failed to verify blockchain transaction: ${error.message}`)
+      }
+
       // Create transaction record
       const { data: transaction, error: transactionError } = await supabaseClient
         .from('transactions')
@@ -94,7 +161,8 @@ serve(async (req) => {
           amount: amount,
           price: listing.price_per_token,
           total_value: totalCost,
-          status: 'confirmed'
+          status: 'confirmed',
+          blockchain_tx_hash: transactionHash
         })
         .select()
         .single()
@@ -117,25 +185,23 @@ serve(async (req) => {
           .eq('id', listing.id)
       }
 
-      // Record blockchain transaction if provided
-      if (walletAddress && transactionHash) {
-        await supabaseClient
-          .from('wallet_transactions')
-          .insert({
-            user_id: user.id,
-            wallet_address: walletAddress.toLowerCase(),
-            transaction_hash: transactionHash,
-            from_address: walletAddress.toLowerCase(),
-            to_address: listing.tokens.contract_address,
-            value_wei: (totalCost * 1e18).toString(),
-            value_eth: totalCost,
-            transaction_type: 'token_purchase',
-            status: 'confirmed',
-            token_contract_address: listing.tokens.contract_address,
-            token_symbol: listing.tokens.token_symbol,
-            token_decimals: listing.tokens.decimals
-          })
-      }
+      // Record blockchain transaction
+      await supabaseClient
+        .from('wallet_transactions')
+        .insert({
+          user_id: user.id,
+          wallet_address: walletAddress.toLowerCase(),
+          transaction_hash: transactionHash,
+          from_address: walletAddress.toLowerCase(),
+          to_address: listing.tokens.contract_address,
+          value_wei: (totalCost * 1e18).toString(),
+          value_eth: totalCost,
+          transaction_type: 'token_purchase',
+          status: 'confirmed',
+          token_contract_address: listing.tokens.contract_address,
+          token_symbol: listing.tokens.token_symbol,
+          token_decimals: listing.tokens.decimals
+        })
 
       // Create activity record
       await supabaseClient
@@ -160,6 +226,7 @@ serve(async (req) => {
           success: true, 
           data: {
             transaction,
+            transactionHash,
             message: `Successfully purchased ${amount} ${listing.tokens.token_symbol} tokens`
           }
         }),
@@ -190,6 +257,46 @@ serve(async (req) => {
 
       const totalValue = amount * price;
 
+      // Verify transaction on blockchain (token approval or transfer to marketplace)
+      try {
+        const transaction = await provider.getTransaction(transactionHash)
+        if (!transaction) {
+          throw new Error('Transaction not found on blockchain')
+        }
+
+        const receipt = await provider.getTransactionReceipt(transactionHash)
+        if (!receipt) {
+          throw new Error('Transaction receipt not found')
+        }
+
+        if (receipt.status !== 1) {
+          throw new Error('Transaction failed on blockchain')
+        }
+
+        // Verify token approval or transfer
+        const tokenContract = new ethers.Contract(tokenInfo.contract_address, ERC20_ABI, provider)
+        
+        // Check for Transfer or Approval events
+        const relevantLogs = receipt.logs.filter(log => {
+          try {
+            const parsed = tokenContract.interface.parseLog(log)
+            return parsed?.name === 'Transfer' || parsed?.name === 'Approval'
+          } catch {
+            return false
+          }
+        })
+
+        if (relevantLogs.length === 0) {
+          throw new Error('No token transfer or approval found in transaction')
+        }
+
+        console.log(`Verified token listing transaction for ${amount} ${tokenInfo.token_symbol}`)
+
+      } catch (error) {
+        console.error('Blockchain verification error:', error)
+        throw new Error(`Failed to verify blockchain transaction: ${error.message}`)
+      }
+
       // Create listing
       const { data: listing, error: listingError } = await supabaseClient
         .from('marketplace_listings')
@@ -208,25 +315,23 @@ serve(async (req) => {
         throw new Error('Failed to create listing')
       }
 
-      // Record blockchain transaction if provided
-      if (walletAddress && transactionHash) {
-        await supabaseClient
-          .from('wallet_transactions')
-          .insert({
-            user_id: user.id,
-            wallet_address: walletAddress.toLowerCase(),
-            transaction_hash: transactionHash,
-            from_address: walletAddress.toLowerCase(),
-            to_address: tokenInfo.contract_address,
-            value_wei: '0',
-            value_eth: 0,
-            transaction_type: 'token_listing',
-            status: 'confirmed',
-            token_contract_address: tokenInfo.contract_address,
-            token_symbol: tokenInfo.token_symbol,
-            token_decimals: tokenInfo.decimals
-          })
-      }
+      // Record blockchain transaction
+      await supabaseClient
+        .from('wallet_transactions')
+        .insert({
+          user_id: user.id,
+          wallet_address: walletAddress.toLowerCase(),
+          transaction_hash: transactionHash,
+          from_address: walletAddress.toLowerCase(),
+          to_address: tokenInfo.contract_address,
+          value_wei: '0',
+          value_eth: 0,
+          transaction_type: 'token_listing',
+          status: 'confirmed',
+          token_contract_address: tokenInfo.contract_address,
+          token_symbol: tokenInfo.token_symbol,
+          token_decimals: tokenInfo.decimals
+        })
 
       // Create activity record
       await supabaseClient
@@ -252,6 +357,7 @@ serve(async (req) => {
           success: true, 
           data: {
             listing,
+            transactionHash,
             message: `Successfully listed ${amount} ${tokenInfo.token_symbol} tokens for sale`
           }
         }),
