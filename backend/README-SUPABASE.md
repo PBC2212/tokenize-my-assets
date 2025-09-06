@@ -1,37 +1,22 @@
-# Backend Migration to Supabase
+# RWA Tokenization Platform - Supabase Backend
 
-This backend has been successfully migrated from MongoDB to Supabase! 🎉
+This backend is powered entirely by Supabase! 🎉
 
-## What's Changed
+## Architecture
 
-### ✅ Database Migration
-- **From:** MongoDB with Mongoose ODM
-- **To:** Supabase PostgreSQL with direct SQL queries
-- **Benefits:** Built-in authentication, real-time features, automatic API generation
+### 🏗️ Tech Stack
+- **Database:** Supabase PostgreSQL with Row Level Security (RLS)
+- **Authentication:** Supabase Auth with JWT tokens
+- **Edge Functions:** Serverless functions for business logic
+- **File Storage:** Supabase Storage for document uploads
+- **Real-time:** Supabase Realtime for live updates
 
-### ✅ New Files Structure
+### ✅ Project Structure
 ```
 backend/src/
-├── server.ts              # Original MongoDB version (kept for reference)
-├── server-supabase.ts     # New Supabase version ⭐
-├── supabase.ts            # Supabase client and type definitions
-└── models/                # MongoDB models (legacy)
+├── server-supabase.ts     # Main Supabase-powered server ⭐
+└── supabase.ts            # Supabase client configuration
 ```
-
-### ✅ Authentication Updates
-- **JWT Authentication:** Now validates Supabase JWT tokens
-- **User Management:** Uses Supabase Auth for registration/login
-- **Backward Compatible:** Maintains same API endpoints
-
-### ✅ API Endpoints (All Updated)
-All existing endpoints now use Supabase:
-- `/api/auth/*` - Authentication (now with Supabase Auth)
-- `/api/kyc/*` - KYC submissions
-- `/api/assets/*` - Asset management and tokenization  
-- `/api/marketplace/*` - Token trading
-- `/api/liquidity/*` - Liquidity pool operations
-- `/api/activity/*` - User activity tracking
-- `/api/dashboard/*` - Analytics and stats
 
 ## Quick Start
 
@@ -50,29 +35,28 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 
 ### 3. Run the Server
 ```bash
-# Run the new Supabase version
 npm run dev
-
-# Or run the legacy MongoDB version
-npm run dev:mongo
 ```
 
-## Key Improvements
+## Key Features
 
 ### 🚀 Performance
-- **Direct SQL queries** instead of ODM overhead
+- **Direct SQL queries** with optimized performance
 - **Connection pooling** handled by Supabase
 - **Real-time subscriptions** available out of the box
+- **Global CDN** for fast data access
 
 ### 🔒 Security  
 - **Row Level Security (RLS)** policies protect user data
 - **JWT token validation** through Supabase Auth
-- **Service role** for backend operations
+- **Service role** for secure backend operations
+- **Built-in rate limiting** and DDoS protection
 
 ### 🛠 Developer Experience
 - **TypeScript support** with generated types
 - **Automatic API documentation** 
 - **Built-in admin dashboard**
+- **Real-time monitoring** and logs
 
 ## Database Schema
 
@@ -86,54 +70,83 @@ The Supabase database includes these main tables:
 - `transactions` - Buy/sell transactions
 - `liquidity_pools` - Available liquidity pools
 - `liquidity_positions` - User positions in pools
+- `wallet_connections` - Connected crypto wallets
+- `wallet_transactions` - Blockchain transaction records
 
-## API Changes
+All tables include proper RLS policies for data security.
 
-### Request Headers
-All authenticated endpoints still require:
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user
+
+### Asset Management
+- `POST /api/assets/pledge` - Pledge a new asset
+- `GET /api/assets/mine` - Get user's assets
+- `POST /api/assets/:id/mint` - Mint tokens for an asset
+
+### KYC Management
+- `POST /api/kyc/submit` - Submit KYC documents
+- `GET /api/kyc/status` - Get KYC verification status
+
+### Marketplace
+- `GET /api/marketplace/listings` - Get marketplace listings
+- `POST /api/marketplace/buy` - Buy tokens
+- `POST /api/marketplace/sell` - Sell tokens
+
+### Liquidity
+- `GET /api/liquidity/pools` - Get liquidity pools
+- `POST /api/liquidity/add` - Add liquidity
+- `POST /api/liquidity/remove` - Remove liquidity
+
+## Edge Functions
+
+Serverless functions handle complex business logic:
+
+- `asset-pledge` - Asset submission and validation
+- `token-mint` - Token creation and blockchain integration  
+- `marketplace-trade` - Buy/sell token transactions
+- `liquidity-management` - DEX liquidity operations
+- `kyc-management` - KYC document processing
+- `wallet-verification` - Crypto wallet verification
+- `wallet-transactions` - Blockchain transaction tracking
+
+## Production Deployment
+
+### Environment Variables
+```env
+SUPABASE_URL=your_production_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_production_service_role_key
+JWT_SECRET=your_strong_jwt_secret
+PORT=5000
+NODE_ENV=production
 ```
-Authorization: Bearer <supabase_jwt_token>
-```
 
-### Response Format
-API responses maintain the same structure for backward compatibility.
-
-### Error Handling
-Enhanced error handling with Supabase-specific error messages.
-
-## Running Both Versions
-
-You can run both versions side by side:
-
+### Build & Deploy
 ```bash
-# Supabase version (default)
-npm run dev
-
-# MongoDB version (legacy)
-npm run dev:mongo
+npm run build
+npm start
 ```
 
-## Migration Benefits
+## Monitoring & Analytics
 
-1. **Scalability** - Serverless PostgreSQL that scales automatically
-2. **Real-time** - Built-in real-time subscriptions
-3. **Security** - Row Level Security policies  
-4. **Admin UI** - Built-in dashboard for data management
-5. **Edge Functions** - Serverless functions for custom logic
-6. **Storage** - Built-in file storage with CDN
-7. **Auth** - Complete authentication system
+Monitor your application with:
 
-## Next Steps
+- **Supabase Dashboard** for database insights
+- **Edge Function logs** for serverless function monitoring  
+- **Real-time database activity** tracking
+- **Authentication analytics** and user metrics
+- **API usage metrics** and performance monitoring
 
-1. **Environment Variables** - Set up your Supabase credentials
-2. **Test Endpoints** - Verify all API endpoints work correctly
-3. **Deploy** - Deploy to your preferred hosting platform
-4. **Monitor** - Use Supabase dashboard for monitoring
-
-## Support
+## Support & Documentation
 
 - 📚 [Supabase Documentation](https://supabase.com/docs)
-- 🎯 [API Reference](http://localhost:5000) (when server is running)
+- 🎯 [Edge Functions Guide](https://supabase.com/docs/guides/functions)
 - 🔧 [Supabase Dashboard](https://supabase.com/dashboard/project/gmirigexmcukcbvzywtc)
+- 📊 [RLS Policies Guide](https://supabase.com/docs/guides/auth/row-level-security)
 
-Happy coding! 🚀
+---
+
+**Powered by Supabase! 🚀**
