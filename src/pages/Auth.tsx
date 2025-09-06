@@ -20,7 +20,7 @@ const Auth = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate("/dashboard");
     }
   }, [user, navigate]);
 
@@ -42,7 +42,7 @@ const Auth = () => {
             title: "Welcome back!",
             description: "You have been successfully logged in.",
           });
-          navigate("/");
+          navigate("/dashboard");
         }
       } else {
         const { error } = await signUp(email, password, name);
