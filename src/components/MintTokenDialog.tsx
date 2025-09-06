@@ -101,8 +101,12 @@ export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
         }
       }
       
-      // Fallback to mock token creation
-      return assetsApi.mint(asset.id, data);
+      // Fallback to mock token creation with wallet details
+      return assetsApi.mint(asset.id, {
+        ...data,
+        walletAddress: wallet.address || 'demo',
+        transactionHash: 'demo-' + Date.now()
+      });
     },
     onSuccess: (response) => {
       const isBlockchain = response?.data?.transactionHash;
@@ -151,7 +155,7 @@ export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Coins className="w-5 h-5 text-primary" />
