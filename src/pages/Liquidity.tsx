@@ -37,12 +37,12 @@ const Liquidity = () => {
   const addLiquidityMutation = useMutation({
     mutationFn: (data: { poolId: string; amount: number }) => {
       if (wallet.isConnected && wallet.address) {
-        return liquidityApi.add({
+        return liquidityApi.provide({
           ...data,
           walletAddress: wallet.address
         });
       }
-      return liquidityApi.add(data);
+      return liquidityApi.provide(data);
     },
     onSuccess: () => {
       toast({
@@ -64,12 +64,12 @@ const Liquidity = () => {
   const removeLiquidityMutation = useMutation({
     mutationFn: (data: { poolId: string; amount: number }) => {
       if (wallet.isConnected && wallet.address) {
-        return liquidityApi.remove({
+        return liquidityApi.withdraw({
           ...data,
           walletAddress: wallet.address
         });
       }
-      return liquidityApi.remove(data);
+      return liquidityApi.withdraw(data);
     },
     onSuccess: () => {
       toast({
@@ -138,8 +138,8 @@ const Liquidity = () => {
     });
   };
 
-  const totalLiquidity = pools.reduce((sum: number, pool: any) => sum + pool.myLiquidity, 0);
-  const totalEarnings = pools.reduce((sum: number, pool: any) => sum + pool.fees24h, 0);
+  const totalLiquidity = pools.reduce((sum: number, pool: any) => sum + (pool.my_liquidity || 0), 0);
+  const totalEarnings = pools.reduce((sum: number, pool: any) => sum + (pool.fees_24h || 0), 0);
 
   if (isLoading) {
     return (
@@ -237,7 +237,7 @@ const Liquidity = () => {
                   </div>
                   <div>
                     <CardTitle className="text-lg">{pool.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{pool.tokenA} / {pool.tokenB}</p>
+                    <p className="text-sm text-muted-foreground">{pool.token_a} / {pool.token_b}</p>
                   </div>
                 </div>
                 <Badge className="bg-success/20 text-success border-success/20">
@@ -250,22 +250,22 @@ const Liquidity = () => {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Total Liquidity</p>
-                  <p className="font-semibold text-lg">${pool.totalLiquidity.toLocaleString()}</p>
+                  <p className="font-semibold text-lg">${pool.total_liquidity?.toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">24h Volume</p>
-                  <p className="font-semibold text-lg">${pool.volume24h.toLocaleString()}</p>
+                  <p className="font-semibold text-lg">${pool.volume_24h?.toLocaleString()}</p>
                 </div>
               </div>
 
               <div className="border-t border-border/50 pt-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-muted-foreground">My Liquidity</p>
-                  <p className="font-semibold">${pool.myLiquidity.toLocaleString()}</p>
+                  <p className="font-semibold">${(pool.my_liquidity || 0).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm text-muted-foreground">My 24h Fees</p>
-                  <p className="font-semibold text-success">${pool.fees24h.toLocaleString()}</p>
+                  <p className="font-semibold text-success">${(pool.fees_24h || 0).toLocaleString()}</p>
                 </div>
               </div>
 
@@ -298,7 +298,7 @@ const Liquidity = () => {
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1">
                         <p>Pool APR: <span className="text-success font-semibold">{pool.apr}%</span></p>
-                        <p>Current Share: {((pool.myLiquidity / pool.totalLiquidity) * 100).toFixed(2)}%</p>
+                        <p>Current Share: {(((pool.my_liquidity || 0) / pool.total_liquidity) * 100).toFixed(2)}%</p>
                         <p>Expected daily earnings: ${((parseFloat(addAmount) || 0) * pool.apr / 365 / 100).toFixed(2)}</p>
                         <div className="flex items-center justify-between text-xs border-t border-border/50 pt-2 mt-2">
                           <span>Connected Wallet:</span>
@@ -339,7 +339,7 @@ const Liquidity = () => {
                       size="sm" 
                       variant="outline" 
                       className="flex-1"
-                      disabled={pool.myLiquidity === 0}
+                      disabled={pool.my_liquidity === 0}
                       onClick={() => setSelectedPoolId(pool.id)}
                     >
                       <Minus className="w-4 h-4 mr-2" />
@@ -358,12 +358,12 @@ const Liquidity = () => {
                           value={removeAmount}
                           onChange={(e) => setRemoveAmount(e.target.value)}
                           placeholder="Enter amount to remove"
-                          max={pool.myLiquidity}
+                          max={pool.my_liquidity || 0}
                           className="bg-muted/50 border-border/50"
                         />
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1">
-                        <p>Available to remove: ${pool.myLiquidity.toLocaleString()}</p>
+                        <p>Available to remove: ${(pool.my_liquidity || 0).toLocaleString()}</p>
                         <p>This will reduce your earnings proportionally</p>
                         <div className="flex items-center justify-between text-xs border-t border-border/50 pt-2 mt-2">
                           <span>Connected Wallet:</span>

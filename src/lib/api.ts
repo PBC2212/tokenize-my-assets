@@ -274,14 +274,51 @@ export const marketplaceApi = {
 // Enhanced Liquidity API
 export const liquidityApi = {
   pools: async () => {
-    const { data, error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // First get all pools
+    const { data: pools, error } = await supabase
       .from('liquidity_pools')
       .select('*')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
       
     if (error) throw error;
-    return { data: data || [] };
+    
+    if (!user) {
+      // If not authenticated, return pools without user data
+      return { 
+        data: (pools || []).map(pool => ({
+          ...pool,
+          my_liquidity: 0,
+          fees_24h: 0
+        }))
+      };
+    }
+    
+    // Get user positions for these pools
+    const { data: positions } = await supabase
+      .from('liquidity_positions')
+      .select('*')
+      .eq('user_id', user.id);
+    
+    // Create a map of pool positions
+    const positionsMap = new Map();
+    (positions || []).forEach(pos => {
+      positionsMap.set(pos.pool_id, pos);
+    });
+    
+    // Merge pools with user positions
+    const poolsWithPositions = (pools || []).map(pool => {
+      const position = positionsMap.get(pool.id);
+      return {
+        ...pool,
+        my_liquidity: position ? parseFloat(position.amount) : 0,
+        fees_24h: pool.fees_24h || 0
+      };
+    });
+    
+    return { data: poolsWithPositions };
   },
   
   provide: async (data: { poolId: string; amount: number; walletAddress?: string; transactionHash?: string }) => {
