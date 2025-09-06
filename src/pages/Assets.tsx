@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { assetsApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { useWallet } from "@/hooks/useWallet";
 import { 
   Building2, 
   Plus, 
@@ -21,7 +22,8 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Coins
+  Coins,
+  Wallet
 } from "lucide-react";
 import { MintTokenDialog } from "@/components/MintTokenDialog";
 
@@ -162,6 +164,7 @@ const AssetsList = () => {
 const PledgeAsset = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { wallet } = useWallet();
   const [formData, setFormData] = useState({
     assetType: "",
     estimatedValue: "",
@@ -170,11 +173,19 @@ const PledgeAsset = () => {
   const [documents, setDocuments] = useState<File[]>([]);
 
   const pledgeMutation = useMutation({
-    mutationFn: assetsApi.pledge,
+    mutationFn: (data: any) => {
+      if (wallet.isConnected && wallet.address) {
+        return assetsApi.pledge({
+          ...data,
+          walletAddress: wallet.address
+        });
+      }
+      return assetsApi.pledge(data);
+    },
     onSuccess: () => {
       toast({
         title: "Asset Pledged Successfully",
-        description: "Your asset has been submitted for review.",
+        description: "Your asset has been submitted for review and recorded on the blockchain.",
       });
       queryClient.invalidateQueries({ queryKey: ['my-assets'] });
       navigate('/assets');
@@ -183,7 +194,7 @@ const PledgeAsset = () => {
       toast({
         variant: "destructive",
         title: "Failed to Pledge Asset",
-        description: error.response?.data?.error || "Something went wrong",
+        description: error.message || "Something went wrong",
       });
     },
   });

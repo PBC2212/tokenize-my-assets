@@ -133,24 +133,15 @@ export const authApi = {
   },
 };
 
-// KYC API - using Supabase
+// Enhanced KYC API
 export const kycApi = {
-  submit: async (data: { documents?: string[] }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+  submit: async (data: { documents?: string[]; personalInfo?: any; walletAddress?: string }) => {
+    const { data: result, error } = await supabase.functions.invoke('kyc-management', {
+      body: data
+    });
     
-    const { data: kycData, error } = await supabase
-      .from('kyc_submissions')
-      .insert({
-        user_id: user.id,
-        documents: data.documents || [],
-        status: 'pending'
-      })
-      .select()
-      .single();
-      
     if (error) throw error;
-    return { data: kycData };
+    return { data: result.data };
   },
   
   upload: async (formData: FormData) => {
@@ -159,55 +150,22 @@ export const kycApi = {
   },
   
   status: async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const { data: result, error } = await supabase.functions.invoke('kyc-management');
     
-    const { data, error } = await supabase
-      .from('kyc_submissions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-      
     if (error) throw error;
-    return { data: data || { status: 'pending', submitted_at: null, reviewed_at: null, rejection_reason: null } };
+    return { data: result.data };
   },
 };
 
-// Assets API - using Supabase
+// Enhanced Assets API
 export const assetsApi = {
-  pledge: async (data: { assetType: string; description: string; estimatedValue: number; documents?: string[] }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+  pledge: async (data: { assetType: string; description: string; estimatedValue: number; documents?: string[]; walletAddress?: string }) => {
+    const { data: result, error } = await supabase.functions.invoke('asset-pledge', {
+      body: data
+    });
     
-    const { data: assetData, error } = await supabase
-      .from('user_assets')
-      .insert({
-        user_id: user.id,
-        asset_type: data.assetType,
-        description: data.description,
-        estimated_value: data.estimatedValue,
-        documents: data.documents || [],
-        status: 'under_review'
-      })
-      .select()
-      .single();
-      
     if (error) throw error;
-    
-    // Create activity record
-    await supabase
-      .from('activities')
-      .insert({
-        user_id: user.id,
-        type: 'Asset Pledged',
-        description: `Pledged ${data.assetType} worth $${data.estimatedValue.toLocaleString()}`,
-        amount: data.estimatedValue,
-        status: 'completed'
-      });
-      
-    return { data: assetData };
+    return { data: result.data };
   },
   
   mine: async () => {
@@ -225,11 +183,11 @@ export const assetsApi = {
   },
   
   pledged: async () => {
-    return assetsApi.mine(); // Same as mine for now
+    return assetsApi.mine();
   },
   
   myAssets: async () => {
-    return assetsApi.mine(); // Same as mine for now
+    return assetsApi.mine();
   },
   
   marketplace: async () => {
@@ -247,62 +205,24 @@ export const assetsApi = {
     tokenSymbol: string; 
     totalSupply: number; 
     pricePerToken: number; 
-    decimals?: number 
+    decimals?: number;
+    walletAddress?: string;
+    transactionHash?: string;
   }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const { data: result, error } = await supabase.functions.invoke('token-mint', {
+      body: {
+        assetId,
+        ...tokenData,
+        decimals: tokenData.decimals || 18
+      }
+    });
     
-    // Check if user owns the asset
-    const { data: asset } = await supabase
-      .from('user_assets')
-      .select('*')
-      .eq('id', assetId)
-      .eq('user_id', user.id)
-      .single();
-      
-    if (!asset) throw new Error('Asset not found or not owned by user');
-    
-    const { data: tokenResult, error } = await supabase
-      .from('tokens')
-      .insert({
-        asset_id: assetId,
-        token_name: tokenData.tokenName,
-        token_symbol: tokenData.tokenSymbol,
-        total_supply: tokenData.totalSupply,
-        price_per_token: tokenData.pricePerToken,
-        decimals: tokenData.decimals || 18,
-        contract_address: `0x${Math.random().toString(16).substr(2, 40)}` // Mock address
-      })
-      .select()
-      .single();
-      
     if (error) throw error;
-    
-    // Update asset status to tokenized
-    await supabase
-      .from('user_assets')
-      .update({ 
-        status: 'tokenized',
-        token_id: tokenResult.id 
-      })
-      .eq('id', assetId);
-      
-    // Create activity record
-    await supabase
-      .from('activities')
-      .insert({
-        user_id: user.id,
-        type: 'Token Minted',
-        description: `Minted ${tokenData.totalSupply} ${tokenData.tokenSymbol} tokens`,
-        amount: tokenData.totalSupply * tokenData.pricePerToken,
-        status: 'completed'
-      });
-      
-    return { data: tokenResult };
+    return { data: result.data };
   },
 };
 
-// Marketplace API - using Supabase
+// Enhanced Marketplace API
 export const marketplaceApi = {
   listings: async () => {
     const { data, error } = await supabase
@@ -318,45 +238,40 @@ export const marketplaceApi = {
     return { data: data || [] };
   },
   
-  buy: async (data: { tokenId: string; amount: number }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+  buy: async (data: { tokenId: string; amount: number; walletAddress?: string; transactionHash?: string }) => {
+    const { data: result, error } = await supabase.functions.invoke('marketplace-trade', {
+      body: {
+        type: 'buy',
+        ...data
+      }
+    });
     
-    // This would need more complex logic for actual trading
-    return { data: { success: true } };
-  },
-  
-  buyWithId: async (tokenId: string, data: { amount: number }) => {
-    return marketplaceApi.buy({ tokenId, amount: data.amount });
-  },
-  
-  sell: async (data: { tokenId: string; amount: number; price: number }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    
-    const { data: listing, error } = await supabase
-      .from('marketplace_listings')
-      .insert({
-        token_id: data.tokenId,
-        seller_id: user.id,
-        amount: data.amount,
-        price_per_token: data.price,
-        total_price: data.amount * data.price,
-        status: 'active'
-      })
-      .select()
-      .single();
-      
     if (error) throw error;
-    return { data: listing };
+    return { data: result };
   },
   
-  sellWithId: async (tokenId: string, data: { amount: number; price: number }) => {
-    return marketplaceApi.sell({ tokenId, amount: data.amount, price: data.price });
+  buyWithId: async (tokenId: string, data: { amount: number; walletAddress?: string; transactionHash?: string }) => {
+    return marketplaceApi.buy({ tokenId, ...data });
+  },
+  
+  sell: async (data: { tokenId: string; amount: number; price: number; walletAddress?: string; transactionHash?: string }) => {
+    const { data: result, error } = await supabase.functions.invoke('marketplace-trade', {
+      body: {
+        type: 'sell',
+        ...data
+      }
+    });
+    
+    if (error) throw error;
+    return { data: result };
+  },
+  
+  sellWithId: async (tokenId: string, data: { amount: number; price: number; walletAddress?: string; transactionHash?: string }) => {
+    return marketplaceApi.sell({ tokenId, ...data });
   },
 };
 
-// Liquidity API - using Supabase
+// Enhanced Liquidity API
 export const liquidityApi = {
   pools: async () => {
     const { data, error } = await supabase
@@ -369,44 +284,40 @@ export const liquidityApi = {
     return { data: data || [] };
   },
   
-  provide: async (data: { poolId: string; amount: number }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+  provide: async (data: { poolId: string; amount: number; walletAddress?: string; transactionHash?: string }) => {
+    const { data: result, error } = await supabase.functions.invoke('liquidity-management', {
+      body: {
+        type: 'add',
+        ...data
+      }
+    });
     
-    const { data: position, error } = await supabase
-      .from('liquidity_positions')
-      .insert({
-        user_id: user.id,
-        pool_id: data.poolId,
-        amount: data.amount,
-        lp_tokens: data.amount,
-        entry_price: 1.0 // Simplified
-      })
-      .select()
-      .single();
-      
     if (error) throw error;
-    return { data: position };
+    return { data: result };
   },
   
-  add: async (data: { poolId: string; amount: number }) => {
+  add: async (data: { poolId: string; amount: number; walletAddress?: string; transactionHash?: string }) => {
     return liquidityApi.provide(data);
   },
   
-  withdraw: async (data: { poolId: string; amount: number }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+  withdraw: async (data: { poolId: string; amount: number; walletAddress?: string; transactionHash?: string }) => {
+    const { data: result, error } = await supabase.functions.invoke('liquidity-management', {
+      body: {
+        type: 'remove',
+        ...data
+      }
+    });
     
-    // This would need more complex logic for actual withdrawal
-    return { data: { success: true } };
+    if (error) throw error;
+    return { data: result };
   },
   
-  remove: async (data: { poolId: string; amount: number }) => {
+  remove: async (data: { poolId: string; amount: number; walletAddress?: string; transactionHash?: string }) => {
     return liquidityApi.withdraw(data);
   },
 };
 
-// Activity API - using Supabase
+// Activity API
 export const activityApi = {
   mine: async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -477,7 +388,7 @@ export const walletApi = {
   },
 };
 
-// Health API - using Supabase
+// Health API
 export const healthApi = {
   check: async () => {
     try {
