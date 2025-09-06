@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { assetsApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { useWallet } from "@/hooks/useWallet";
 import { 
   Coins, 
   DollarSign, 
@@ -15,7 +16,8 @@ import {
   Percent,
   Info,
   TrendingUp,
-  Shield
+  Shield,
+  Wallet
 } from "lucide-react";
 
 interface MintTokenDialogProps {
@@ -31,6 +33,7 @@ interface MintTokenDialogProps {
 
 export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
   const [open, setOpen] = useState(false);
+  const { wallet } = useWallet();
   const [mintData, setMintData] = useState({
     tokenSymbol: "",
     totalSupply: "",
@@ -42,11 +45,19 @@ export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
   const queryClient = useQueryClient();
 
   const mintMutation = useMutation({
-    mutationFn: (data: any) => assetsApi.mint(asset.id, data),
+    mutationFn: (data: any) => {
+      if (wallet.isConnected && wallet.address) {
+        return assetsApi.mint(asset.id, {
+          ...data,
+          walletAddress: wallet.address
+        });
+      }
+      return assetsApi.mint(asset.id, data);
+    },
     onSuccess: () => {
       toast({
         title: "Tokens Minted Successfully",
-        description: `${mintData.totalSupply} ${mintData.tokenSymbol} tokens have been created for your asset.`,
+        description: `${mintData.totalSupply} ${mintData.tokenSymbol} tokens have been created and deployed to the blockchain.`,
       });
       queryClient.invalidateQueries({ queryKey: ['my-assets'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
@@ -56,7 +67,7 @@ export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
       toast({
         variant: "destructive",
         title: "Minting Failed",
-        description: error.response?.data?.error || "Failed to mint tokens",
+        description: error.message || "Failed to mint tokens",
       });
     },
   });
@@ -212,7 +223,20 @@ export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
             <div className="flex items-start space-x-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
               <Info className="w-4 h-4 text-primary mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-primary">Important Notice</p>
+                <p className="font-medium text-primary">Blockchain Integration</p>
+                <p className="text-muted-foreground">
+                  {wallet.isConnected 
+                    ? `Tokens will be deployed to ${wallet.address?.slice(0, 6)}...${wallet.address?.slice(-4)} on ${wallet.chainId === 1 ? 'Ethereum' : 'testnet'}`
+                    : 'Connect your wallet for blockchain deployment'
+                  }
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-2 p-3 rounded-lg bg-muted/20">
+              <Wallet className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium">Production Notice</p>
                 <p className="text-muted-foreground">
                   Once tokens are minted, they will be available for trading on the marketplace. 
                   You'll retain full ownership initially and can choose to sell portions or provide liquidity.
@@ -232,17 +256,22 @@ export const MintTokenDialog = ({ asset, children }: MintTokenDialogProps) => {
               <Button
                 type="submit"
                 className="flex-1 gradient-primary"
-                disabled={mintMutation.isPending}
+                disabled={mintMutation.isPending || (!wallet.isConnected && process.env.NODE_ENV === 'production')}
               >
                 {mintMutation.isPending ? (
                   <>
                     <Shield className="w-4 h-4 mr-2 animate-spin" />
-                    Minting Tokens...
+                    Minting & Deploying...
+                  </>
+                ) : !wallet.isConnected ? (
+                  <>
+                    <Wallet className="w-4 h-4 mr-2" />
+                    Connect Wallet to Mint
                   </>
                 ) : (
                   <>
                     <Coins className="w-4 h-4 mr-2" />
-                    Mint Tokens
+                    Mint & Deploy Tokens
                   </>
                 )}
               </Button>

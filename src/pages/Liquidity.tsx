@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { liquidityApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { useWallet } from "@/hooks/useWallet";
 import { 
   Droplets, 
   Plus, 
@@ -16,7 +17,8 @@ import {
   Coins,
   DollarSign,
   BarChart3,
-  Wallet
+  Wallet,
+  ExternalLink
 } from "lucide-react";
 
 const Liquidity = () => {
@@ -25,6 +27,7 @@ const Liquidity = () => {
   const [selectedPoolId, setSelectedPoolId] = useState("");
 
   const queryClient = useQueryClient();
+  const { wallet } = useWallet();
 
   const { data: pools = [], isLoading } = useQuery({
     queryKey: ['liquidity-pools'],
@@ -32,11 +35,19 @@ const Liquidity = () => {
   });
 
   const addLiquidityMutation = useMutation({
-    mutationFn: liquidityApi.add,
+    mutationFn: (data: { poolId: string; amount: number }) => {
+      if (wallet.isConnected && wallet.address) {
+        return liquidityApi.add({
+          ...data,
+          walletAddress: wallet.address
+        });
+      }
+      return liquidityApi.add(data);
+    },
     onSuccess: () => {
       toast({
         title: "Liquidity Added Successfully",
-        description: "Your liquidity has been added to the pool.",
+        description: "Your liquidity has been added to the pool and recorded on the blockchain.",
       });
       queryClient.invalidateQueries({ queryKey: ['liquidity-pools'] });
       setAddAmount("");
@@ -45,17 +56,25 @@ const Liquidity = () => {
       toast({
         variant: "destructive",
         title: "Failed to Add Liquidity",
-        description: error.response?.data?.error || "Something went wrong",
+        description: error.message || "Something went wrong",
       });
     },
   });
 
   const removeLiquidityMutation = useMutation({
-    mutationFn: liquidityApi.remove,
+    mutationFn: (data: { poolId: string; amount: number }) => {
+      if (wallet.isConnected && wallet.address) {
+        return liquidityApi.remove({
+          ...data,
+          walletAddress: wallet.address
+        });
+      }
+      return liquidityApi.remove(data);
+    },
     onSuccess: () => {
       toast({
         title: "Liquidity Removed Successfully", 
-        description: "Your liquidity has been withdrawn from the pool.",
+        description: "Your liquidity has been withdrawn from the pool and recorded on the blockchain.",
       });
       queryClient.invalidateQueries({ queryKey: ['liquidity-pools'] });
       setRemoveAmount("");
@@ -64,12 +83,21 @@ const Liquidity = () => {
       toast({
         variant: "destructive",
         title: "Failed to Remove Liquidity",
-        description: error.response?.data?.error || "Something went wrong",
+        description: error.message || "Something went wrong",
       });
     },
   });
 
   const handleAddLiquidity = (pool: any) => {
+    if (!wallet.isConnected) {
+      toast({
+        variant: "destructive",
+        title: "Wallet Required",
+        description: "Please connect your wallet to add liquidity.",
+      });
+      return;
+    }
+
     if (!addAmount || parseFloat(addAmount) <= 0) {
       toast({
         variant: "destructive",
@@ -86,6 +114,15 @@ const Liquidity = () => {
   };
 
   const handleRemoveLiquidity = (pool: any) => {
+    if (!wallet.isConnected) {
+      toast({
+        variant: "destructive",
+        title: "Wallet Required",
+        description: "Please connect your wallet to remove liquidity.",
+      });
+      return;
+    }
+
     if (!removeAmount || parseFloat(removeAmount) <= 0) {
       toast({
         variant: "destructive",
@@ -263,13 +300,34 @@ const Liquidity = () => {
                         <p>Pool APR: <span className="text-success font-semibold">{pool.apr}%</span></p>
                         <p>Current Share: {((pool.myLiquidity / pool.totalLiquidity) * 100).toFixed(2)}%</p>
                         <p>Expected daily earnings: ${((parseFloat(addAmount) || 0) * pool.apr / 365 / 100).toFixed(2)}</p>
+                        <div className="flex items-center justify-between text-xs border-t border-border/50 pt-2 mt-2">
+                          <span>Connected Wallet:</span>
+                          <span className="font-mono">
+                            {wallet.isConnected ? `${wallet.address?.slice(0, 6)}...${wallet.address?.slice(-4)}` : 'Not connected'}
+                          </span>
+                        </div>
+                        {wallet.isConnected && (
+                          <div className="flex items-center space-x-1 text-xs text-success">
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Transaction will be recorded on-chain</span>
+                          </div>
+                        )}
                       </div>
                       <Button 
                         onClick={() => handleAddLiquidity(pool)} 
                         className="w-full gradient-primary"
-                        disabled={addLiquidityMutation.isPending}
+                        disabled={addLiquidityMutation.isPending || !wallet.isConnected}
                       >
-                        {addLiquidityMutation.isPending ? "Adding..." : "Add Liquidity"}
+                        {addLiquidityMutation.isPending ? (
+                          "Adding Liquidity..."
+                        ) : !wallet.isConnected ? (
+                          <>
+                            <Wallet className="w-4 h-4 mr-2" />
+                            Connect Wallet to Add
+                          </>
+                        ) : (
+                          "Add Liquidity"
+                        )}
                       </Button>
                     </div>
                   </DialogContent>
@@ -304,17 +362,38 @@ const Liquidity = () => {
                           className="bg-muted/50 border-border/50"
                         />
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-muted-foreground space-y-1">
                         <p>Available to remove: ${pool.myLiquidity.toLocaleString()}</p>
                         <p>This will reduce your earnings proportionally</p>
+                        <div className="flex items-center justify-between text-xs border-t border-border/50 pt-2 mt-2">
+                          <span>Connected Wallet:</span>
+                          <span className="font-mono">
+                            {wallet.isConnected ? `${wallet.address?.slice(0, 6)}...${wallet.address?.slice(-4)}` : 'Not connected'}
+                          </span>
+                        </div>
+                        {wallet.isConnected && (
+                          <div className="flex items-center space-x-1 text-xs text-success">
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Transaction will be recorded on-chain</span>
+                          </div>
+                        )}
                       </div>
                       <Button 
                         onClick={() => handleRemoveLiquidity(pool)} 
                         className="w-full"
                         variant="destructive"
-                        disabled={removeLiquidityMutation.isPending}
+                        disabled={removeLiquidityMutation.isPending || !wallet.isConnected}
                       >
-                        {removeLiquidityMutation.isPending ? "Removing..." : "Remove Liquidity"}
+                        {removeLiquidityMutation.isPending ? (
+                          "Removing Liquidity..."
+                        ) : !wallet.isConnected ? (
+                          <>
+                            <Wallet className="w-4 h-4 mr-2" />
+                            Connect Wallet to Remove
+                          </>
+                        ) : (
+                          "Remove Liquidity"
+                        )}
                       </Button>
                     </div>
                   </DialogContent>

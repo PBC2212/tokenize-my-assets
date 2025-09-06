@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { marketplaceApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { useWallet } from "@/hooks/useWallet";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -20,7 +21,9 @@ import {
   ShoppingCart,
   DollarSign,
   BarChart3,
-  Coins
+  Coins,
+  Wallet,
+  ExternalLink
 } from "lucide-react";
 
 const Marketplace = () => {
@@ -32,6 +35,7 @@ const Marketplace = () => {
   const [sellPrice, setSellPrice] = useState("");
 
   const queryClient = useQueryClient();
+  const { wallet } = useWallet();
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['marketplace-listings'],
@@ -39,11 +43,19 @@ const Marketplace = () => {
   });
 
   const buyMutation = useMutation({
-    mutationFn: marketplaceApi.buy,
+    mutationFn: (data: { tokenId: string; amount: number }) => {
+      if (wallet.isConnected && wallet.address) {
+        return marketplaceApi.buy({
+          ...data,
+          walletAddress: wallet.address
+        });
+      }
+      return marketplaceApi.buy(data);
+    },
     onSuccess: () => {
       toast({
         title: "Purchase Successful",
-        description: "Tokens have been added to your portfolio.",
+        description: "Tokens have been added to your portfolio and recorded on the blockchain.",
       });
       queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
       setBuyAmount("");
@@ -52,17 +64,25 @@ const Marketplace = () => {
       toast({
         variant: "destructive",
         title: "Purchase Failed",
-        description: error.response?.data?.error || "Something went wrong",
+        description: error.message || "Something went wrong",
       });
     },
   });
 
   const sellMutation = useMutation({
-    mutationFn: marketplaceApi.sell,
+    mutationFn: (data: { tokenId: string; amount: number; price: number }) => {
+      if (wallet.isConnected && wallet.address) {
+        return marketplaceApi.sell({
+          ...data,
+          walletAddress: wallet.address
+        });
+      }
+      return marketplaceApi.sell(data);
+    },
     onSuccess: () => {
       toast({
         title: "Listing Created",
-        description: "Your tokens have been listed for sale.",
+        description: "Your tokens have been listed for sale and recorded on the blockchain.",
       });
       queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
       setSellAmount("");
@@ -72,12 +92,21 @@ const Marketplace = () => {
       toast({
         variant: "destructive",
         title: "Listing Failed",
-        description: error.response?.data?.error || "Something went wrong",
+        description: error.message || "Something went wrong",
       });
     },
   });
 
   const handleBuy = (listing: any) => {
+    if (!wallet.isConnected) {
+      toast({
+        variant: "destructive",
+        title: "Wallet Required",
+        description: "Please connect your wallet to make purchases.",
+      });
+      return;
+    }
+
     if (!buyAmount || parseFloat(buyAmount) <= 0) {
       toast({
         variant: "destructive",
@@ -94,6 +123,15 @@ const Marketplace = () => {
   };
 
   const handleSell = (listing: any) => {
+    if (!wallet.isConnected) {
+      toast({
+        variant: "destructive",
+        title: "Wallet Required",
+        description: "Please connect your wallet to create listings.",
+      });
+      return;
+    }
+
     if (!sellAmount || !sellPrice || parseFloat(sellAmount) <= 0 || parseFloat(sellPrice) <= 0) {
       toast({
         variant: "destructive",
@@ -292,15 +330,39 @@ const Marketplace = () => {
                             className="bg-muted/50 border-border/50"
                           />
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Total Cost: ${(parseFloat(buyAmount) * listing.price || 0).toFixed(2)}
+                        <div className="text-sm space-y-2">
+                          <div className="flex justify-between">
+                            <span>Total Cost:</span>
+                            <span className="font-semibold">${(parseFloat(buyAmount) * listing.price || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Connected Wallet:</span>
+                            <span className="font-mono">
+                              {wallet.isConnected ? `${wallet.address?.slice(0, 6)}...${wallet.address?.slice(-4)}` : 'Not connected'}
+                            </span>
+                          </div>
+                          {wallet.isConnected && (
+                            <div className="flex items-center space-x-1 text-xs text-success">
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Transaction will be recorded on-chain</span>
+                            </div>
+                          )}
                         </div>
                         <Button 
                           onClick={() => handleBuy(listing)} 
                           className="w-full gradient-primary"
-                          disabled={buyMutation.isPending}
+                          disabled={buyMutation.isPending || !wallet.isConnected}
                         >
-                          {buyMutation.isPending ? "Processing..." : "Confirm Purchase"}
+                          {buyMutation.isPending ? (
+                            "Processing Purchase..."
+                          ) : !wallet.isConnected ? (
+                            <>
+                              <Wallet className="w-4 h-4 mr-2" />
+                              Connect Wallet to Buy
+                            </>
+                          ) : (
+                            "Confirm Purchase"
+                          )}
                         </Button>
                       </div>
                     </DialogContent>
@@ -338,15 +400,39 @@ const Marketplace = () => {
                             className="bg-muted/50 border-border/50"
                           />
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Total Value: ${(parseFloat(sellAmount) * parseFloat(sellPrice) || 0).toFixed(2)}
+                        <div className="text-sm space-y-2">
+                          <div className="flex justify-between">
+                            <span>Total Value:</span>
+                            <span className="font-semibold">${(parseFloat(sellAmount) * parseFloat(sellPrice) || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Connected Wallet:</span>
+                            <span className="font-mono">
+                              {wallet.isConnected ? `${wallet.address?.slice(0, 6)}...${wallet.address?.slice(-4)}` : 'Not connected'}
+                            </span>
+                          </div>
+                          {wallet.isConnected && (
+                            <div className="flex items-center space-x-1 text-xs text-success">
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Listing will be recorded on-chain</span>
+                            </div>
+                          )}
                         </div>
                         <Button 
                           onClick={() => handleSell(listing)} 
                           className="w-full gradient-primary"
-                          disabled={sellMutation.isPending}
+                          disabled={sellMutation.isPending || !wallet.isConnected}
                         >
-                          {sellMutation.isPending ? "Listing..." : "List for Sale"}
+                          {sellMutation.isPending ? (
+                            "Creating Listing..."
+                          ) : !wallet.isConnected ? (
+                            <>
+                              <Wallet className="w-4 h-4 mr-2" />
+                              Connect Wallet to Sell
+                            </>
+                          ) : (
+                            "List for Sale"
+                          )}
                         </Button>
                       </div>
                     </DialogContent>

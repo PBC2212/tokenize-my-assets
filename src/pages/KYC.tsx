@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { kycApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { useWallet } from "@/hooks/useWallet";
 import { 
   Shield, 
   Upload, 
@@ -19,7 +20,9 @@ import {
   Camera,
   CreditCard,
   Home,
-  User
+  User,
+  Wallet,
+  ExternalLink
 } from "lucide-react";
 
 const KYC = () => {
@@ -29,6 +32,7 @@ const KYC = () => {
     selfie?: File;
   }>({});
   const [uploadMethod, setUploadMethod] = useState<'submit' | 'upload'>('upload');
+  const { wallet } = useWallet();
 
   const queryClient = useQueryClient();
 
@@ -38,11 +42,19 @@ const KYC = () => {
   });
 
   const submitMutation = useMutation({
-    mutationFn: kycApi.submit,
+    mutationFn: (data: any) => {
+      if (wallet.isConnected && wallet.address) {
+        return kycApi.submit({
+          ...data,
+          walletAddress: wallet.address
+        });
+      }
+      return kycApi.submit(data);
+    },
     onSuccess: () => {
       toast({
         title: "KYC Documents Submitted",
-        description: "Your documents have been submitted for review.",
+        description: "Your documents have been submitted for review and linked to your wallet.",
       });
       queryClient.invalidateQueries({ queryKey: ['kyc-status'] });
       setDocuments({});
@@ -51,7 +63,7 @@ const KYC = () => {
       toast({
         variant: "destructive",
         title: "Submission Failed",
-        description: error.response?.data?.error || "Something went wrong",
+        description: error.message || "Something went wrong",
       });
     },
   });
@@ -83,6 +95,15 @@ const KYC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!wallet.isConnected) {
+      toast({
+        variant: "destructive",
+        title: "Wallet Required",
+        description: "Please connect your wallet to submit KYC information.",
+      });
+      return;
+    }
     
     const formData = new FormData();
     if (documents.identity) formData.append('documents', documents.identity);
@@ -298,15 +319,47 @@ const KYC = () => {
                 </div>
               </div>
 
+              {/* Wallet Integration Notice */}
+              <div className="p-4 rounded-lg bg-muted/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Wallet className="w-4 h-4 text-primary" />
+                    <span className="font-medium">Blockchain Integration</span>
+                  </div>
+                  {wallet.isConnected ? (
+                    <Badge className="bg-success/20 text-success">Connected</Badge>
+                  ) : (
+                    <Badge variant="outline">Not Connected</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {wallet.isConnected 
+                    ? `Your KYC will be linked to wallet: ${wallet.address?.slice(0, 6)}...${wallet.address?.slice(-4)}`
+                    : 'Connect your wallet to link KYC verification with your blockchain identity'
+                  }
+                </p>
+                {wallet.isConnected && (
+                  <div className="flex items-center space-x-1 text-xs text-success">
+                    <ExternalLink className="w-3 h-3" />
+                    <span>KYC status will be recorded on-chain</span>
+                  </div>
+                )}
+              </div>
+
               <Button 
                 type="submit" 
                 className="w-full gradient-primary" 
-                disabled={submitMutation.isPending || uploadMutation.isPending || completionPercentage < 100}
+                disabled={submitMutation.isPending || uploadMutation.isPending || completionPercentage < 100 || (!wallet.isConnected && process.env.NODE_ENV === 'production')}
               >
                 {submitMutation.isPending || uploadMutation.isPending ? (
                   <>
                     <Upload className="w-4 h-4 mr-2 animate-spin" />
                     {uploadMethod === 'submit' ? 'Submitting...' : 'Uploading...'}
+                  </>
+                ) : !wallet.isConnected ? (
+                  <>
+                    <Wallet className="w-4 h-4 mr-2" />
+                    Connect Wallet to Submit
                   </>
                 ) : (
                   <>

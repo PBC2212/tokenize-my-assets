@@ -1,1 +1,22 @@
 project_id = "gmirigexmcukcbvzywtc"
+
+[functions.asset-pledge]
+verify_jwt = true
+
+[functions.token-mint]
+verify_jwt = true
+
+[functions.marketplace-trade]
+verify_jwt = true
+
+[functions.liquidity-management]
+verify_jwt = true
+
+[functions.kyc-management]
+verify_jwt = true
+
+[functions.wallet-verification]
+verify_jwt = true
+
+[functions.wallet-transactions]
+verify_jwt = true
