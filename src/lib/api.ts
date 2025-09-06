@@ -427,6 +427,141 @@ export const walletApi = {
   },
 };
 
+// Dashboard API
+export const dashboardApi = {
+  stats: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // Get user assets
+    const { data: assets } = await supabase
+      .from('user_assets')
+      .select('*')
+      .eq('user_id', user.id);
+
+    // Get user tokens
+    const { data: tokens } = await supabase
+      .from('tokens')
+      .select('*')
+      .in('asset_id', assets?.map(a => a.id) || []);
+
+    // Get user liquidity positions
+    const { data: positions } = await supabase
+      .from('liquidity_positions')
+      .select('*')
+      .eq('user_id', user.id);
+
+    // Get user transactions
+    const { data: transactions } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id);
+
+    const totalAssets = assets?.length || 0;
+    const activeAssets = assets?.filter(a => a.status === 'approved').length || 0;
+    const pendingAssets = assets?.filter(a => a.status === 'under_review').length || 0;
+    const portfolioValue = assets?.reduce((sum, asset) => sum + (asset.estimated_value || 0), 0) || 0;
+    const totalInvested = transactions?.reduce((sum, tx) => sum + (tx.total_value || 0), 0) || 0;
+    const totalLiquidity = positions?.reduce((sum, pos) => sum + parseFloat(pos.amount?.toString() || '0'), 0) || 0;
+    const totalTokens = tokens?.reduce((sum, token) => sum + parseFloat(token.total_supply?.toString() || '0'), 0) || 0;
+
+    return {
+      data: {
+        portfolioValue,
+        activeAssets,
+        totalAssets,
+        pendingAssets,
+        totalInvested,
+        totalLiquidity,
+        totalTokens,
+        totalTransactions: transactions?.length || 0,
+        change24h: 2.5, // Mock data for now
+        changeAmount: portfolioValue * 0.025
+      }
+    };
+  },
+
+  portfolioBreakdown: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data: assets } = await supabase
+      .from('user_assets')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'approved');
+
+    const breakdown = assets?.reduce((acc, asset) => {
+      const type = asset.asset_type;
+      if (!acc[type]) {
+        acc[type] = { type, count: 0, value: 0 };
+      }
+      acc[type].count++;
+      acc[type].value += asset.estimated_value || 0;
+      return acc;
+    }, {} as Record<string, any>) || {};
+
+    const total = Object.values(breakdown).reduce((sum: number, item: any) => sum + item.value, 0);
+    
+    return {
+      data: Object.values(breakdown).map((item: any) => ({
+        ...item,
+        percentage: total > 0 ? (item.value / total) * 100 : 0
+      }))
+    };
+  },
+
+  recentActivity: async (page = 1, limit = 5) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data: activities } = await supabase
+      .from('activities')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('timestamp', { ascending: false })
+      .limit(limit);
+
+    return {
+      data: {
+        activities: activities || [],
+        totalCount: activities?.length || 0,
+        page,
+        limit
+      }
+    };
+  },
+
+  marketOverview: async () => {
+    // Get total market stats
+    const { data: allAssets } = await supabase
+      .from('user_assets')
+      .select('estimated_value')
+      .eq('status', 'approved');
+
+    const { data: totalUsers } = await supabase
+      .from('profiles')
+      .select('id');
+
+    const { data: transactions } = await supabase
+      .from('transactions')
+      .select('total_value, created_at')
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    const totalMarketValue = allAssets?.reduce((sum, asset) => sum + (asset.estimated_value || 0), 0) || 0;
+    const total24hVolume = transactions?.reduce((sum, tx) => sum + (tx.total_value || 0), 0) || 0;
+
+    return {
+      data: {
+        totalMarketValue,
+        totalAssets: allAssets?.length || 0,
+        total24hVolume,
+        totalUsers: totalUsers?.length || 0
+      }
+    };
+  }
+};
+
 // Health API
 export const healthApi = {
   check: async () => {

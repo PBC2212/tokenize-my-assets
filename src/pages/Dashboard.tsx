@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { assetsApi, marketplaceApi, activityApi } from "@/lib/api";
+import { assetsApi, marketplaceApi, activityApi, dashboardApi } from "@/lib/api";
 import { 
   TrendingUp, 
   Wallet, 
@@ -18,56 +18,52 @@ import {
 import { MintTokenDialog } from "@/components/MintTokenDialog";
 import { Link } from "react-router-dom";
 
-// Add dashboard API functions to your api.ts file or create them here
-const dashboardApi = {
-  stats: () => fetch('/api/dashboard/stats', {
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-  }).then(res => res.json()),
-  
-  portfolioBreakdown: () => fetch('/api/dashboard/portfolio-breakdown', {
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-  }).then(res => res.json()),
-  
-  recentActivity: (page = 1, limit = 5) => fetch(`/api/dashboard/recent-activity?page=${page}&limit=${limit}`, {
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-  }).then(res => res.json()),
-  
-  assetPerformance: () => fetch('/api/dashboard/asset-performance', {
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-  }).then(res => res.json()),
-  
-  marketOverview: () => fetch('/api/dashboard/market-overview', {
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-  }).then(res => res.json())
-};
+interface DashboardStats {
+  portfolioValue?: number;
+  activeAssets?: number;
+  totalAssets?: number;
+  pendingAssets?: number;
+  totalInvested?: number;
+  totalLiquidity?: number;
+  totalTokens?: number;
+  totalTransactions?: number;
+  change24h?: number;
+  changeAmount?: number;
+}
+
+interface MarketOverview {
+  totalMarketValue?: number;
+  totalAssets?: number;
+  total24hVolume?: number;
+  totalUsers?: number;
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
 
-  // Use new dashboard endpoints
-  const { data: dashboardStats } = useQuery({
+  // Use Supabase-based dashboard endpoints
+  const { data: dashboardStatsResponse, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
-    queryFn: dashboardApi.stats,
+    queryFn: () => dashboardApi.stats().then(res => res.data),
+    enabled: !!user,
   });
 
-  const { data: portfolioBreakdown = [] } = useQuery({
+  const { data: portfolioBreakdownResponse, isLoading: portfolioLoading } = useQuery({
     queryKey: ['portfolio-breakdown'],
-    queryFn: dashboardApi.portfolioBreakdown,
+    queryFn: () => dashboardApi.portfolioBreakdown().then(res => res.data),
+    enabled: !!user,
   });
 
-  const { data: recentActivityData } = useQuery({
+  const { data: recentActivityResponse, isLoading: activityLoading } = useQuery({
     queryKey: ['dashboard-recent-activity'],
-    queryFn: () => dashboardApi.recentActivity(1, 5),
+    queryFn: () => dashboardApi.recentActivity(1, 5).then(res => res.data),
+    enabled: !!user,
   });
 
-  const { data: assetPerformance = [] } = useQuery({
-    queryKey: ['asset-performance'],
-    queryFn: dashboardApi.assetPerformance,
-  });
-
-  const { data: marketOverview } = useQuery({
+  const { data: marketOverviewResponse, isLoading: marketLoading } = useQuery({
     queryKey: ['market-overview'],
-    queryFn: dashboardApi.marketOverview,
+    queryFn: () => dashboardApi.marketOverview().then(res => res.data),
+    enabled: !!user,
   });
 
   // Keep existing queries for backward compatibility
@@ -81,9 +77,11 @@ const Dashboard = () => {
     queryFn: () => marketplaceApi.listings().then(res => res.data),
   });
 
-  // Use new dashboard data with fallbacks
-  const stats = dashboardStats || {};
-  const recentActivities = recentActivityData?.activities || [];
+  // Use Supabase dashboard data with fallbacks
+  const stats: DashboardStats = dashboardStatsResponse || {};
+  const portfolioBreakdown = portfolioBreakdownResponse || [];
+  const recentActivities = recentActivityResponse?.activities || [];
+  const marketOverview: MarketOverview = marketOverviewResponse || {};
   const readyToMint = assets.filter((asset: any) => asset.status === 'approved');
 
   return (
