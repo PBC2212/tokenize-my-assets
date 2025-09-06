@@ -3,8 +3,19 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import multer from "multer";
+import { 
+  connectDB, 
+  User, 
+  Asset, 
+  Token, 
+  Activity, 
+  KycSubmission, 
+  LiquidityPool, 
+  LiquidityPosition,
+  Transaction,
+  MarketplaceListing
+} from "./models";
 
 dotenv.config();
 
@@ -22,6 +33,9 @@ declare global {
 
 const app = express();
 
+// Connect to MongoDB
+connectDB();
+
 // Handle preflight requests first
 app.options('*', (req: Request, res: Response) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin);
@@ -38,7 +52,8 @@ app.use(cors({
       "http://localhost:3000",
       "http://localhost:8080", 
       "https://www.imecapitaltokenization.com",
-      "https://imecapitaltokenization.com"
+      "https://imecapitaltokenization.com",
+      "https://id-preview--4eb6568c-c4c3-419d-9b8c-60467070fa3e.lovable.app"
     ];
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
@@ -64,7 +79,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     "http://localhost:3000",
     "http://localhost:8080", 
     "https://www.imecapitaltokenization.com",
-    "https://imecapitaltokenization.com"
+    "https://imecapitaltokenization.com",
+    "https://id-preview--4eb6568c-c4c3-419d-9b8c-60467070fa3e.lovable.app"
   ];
   
   if (origin && allowedOrigins.includes(origin)) {
@@ -89,105 +105,6 @@ const upload = multer({
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-jwt-secret";
 
-// Enhanced in-memory storage with sample data
-const users = new Map();
-const assets = new Map();
-const activities = new Map();
-const kycSubmissions = new Map();
-const tokens = new Map();
-
-// Pre-populate with sample data for testing
-const sampleUserId = "user_1";
-// Create a proper bcrypt hash for "password123"
-const createTestUser = async () => {
-  const hashedPassword = await bcrypt.hash("password123", 10);
-  users.set("test@test.com", {
-    id: sampleUserId,
-    email: "test@test.com",
-    password: hashedPassword,
-    name: "Test User",
-    createdAt: new Date().toISOString()
-  });
-};
-
-// Initialize test user
-createTestUser();
-
-// Sample assets that match frontend expectations
-assets.set("asset_1", {
-  id: "asset_1",
-  userId: sampleUserId,
-  assetType: "Real Estate",
-  description: "Luxury apartment in downtown",
-  estimatedValue: 250000,
-  status: "approved",
-  documents: [],
-  submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-  approvedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  reviewedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  rejectionReason: null
-});
-
-assets.set("asset_2", {
-  id: "asset_2",
-  userId: sampleUserId,
-  assetType: "Gold",
-  description: "24k Gold bars - 10oz",
-  estimatedValue: 18500,
-  status: "approved",
-  documents: [],
-  submittedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-  approvedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  rejectionReason: null
-});
-
-// Sample activities
-activities.set("activity_1", {
-  id: "activity_1",
-  userId: sampleUserId,
-  type: "Asset Pledged",
-  description: "Pledged Real Estate asset worth $250,000",
-  amount: 250000,
-  status: "completed",
-  timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-});
-
-activities.set("activity_2", {
-  id: "activity_2",
-  userId: sampleUserId,
-  type: "Token Purchase",
-  description: "Bought 100 REI tokens",
-  amount: 2500,
-  status: "completed",
-  timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-});
-
-const pools = [
-  {
-    id: "pool1",
-    name: "REI/USDC Pool",
-    tokenA: "REI",
-    tokenB: "USDC",
-    apr: 12.5,
-    totalLiquidity: 5000000,
-    myLiquidity: 10000,
-    volume24h: 250000,
-    fees24h: 125
-  },
-  {
-    id: "pool2",
-    name: "GOLD/ETH Pool",
-    tokenA: "GOLD", 
-    tokenB: "ETH",
-    apr: 8.3,
-    totalLiquidity: 2500000,
-    myLiquidity: 5000,
-    volume24h: 180000,
-    fees24h: 90
-  }
-];
-
 // Authentication middleware
 const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
@@ -206,40 +123,36 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-// Helper function to generate IDs
-const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
-
 // 1. Authentication Endpoints
 app.post('/api/auth/register', async (req: Request, res: Response) => {
   try {
     const { email, password, name } = req.body;
     
-    if (users.has(email)) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userId = generateId();
-    const user = {
-      id: userId,
+    const user = new User({
       email,
       password: hashedPassword,
-      name,
-      createdAt: new Date().toISOString()
-    };
+      name
+    });
     
-    users.set(email, user);
+    await user.save();
     
     res.json({
       success: true,
       message: "User registered successfully",
       user: {
-        id: userId,
-        email,
-        name
+        id: user._id,
+        email: user.email,
+        name: user.name
       }
     });
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
@@ -247,502 +160,976 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
 app.post('/api/auth/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-    const user = users.get(email);
+    const user = await User.findOne({ email });
     
     if (!user || !await bcrypt.compare(password, user.password)) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
     
     res.json({
       success: true,
       token,
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         name: user.name
       }
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
-app.get('/api/auth/me', authenticateToken, (req: Request, res: Response) => {
-  const user = Array.from(users.values()).find((u: any) => u.id === req.user?.userId);
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+app.get('/api/auth/me', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.user?.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ error: 'Failed to get user' });
   }
-  
-  res.json({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    createdAt: user.createdAt
-  });
 });
 
 // 2. KYC Endpoints  
-app.post('/api/kyc/submit', authenticateToken, upload.array('documents'), (req: Request, res: Response) => {
-  const submissionId = generateId();
-  const files = req.files as Express.Multer.File[];
-  const submission = {
-    id: submissionId,
-    userId: req.user?.userId,
-    status: 'pending',
-    documents: files?.map((f) => f.filename) || [],
-    submittedAt: new Date().toISOString(),
-    reviewedAt: null,
-    rejectionReason: null
-  };
-  
-  kycSubmissions.set(submissionId, submission);
-  
-  res.json({
-    success: true,
-    message: "KYC documents submitted successfully",
-    submissionId
-  });
-});
-
-app.post('/api/kyc/upload', authenticateToken, upload.array('documents'), (req: Request, res: Response) => {
-  const submissionId = generateId();
-  const files = req.files as Express.Multer.File[];
-  const submission = {
-    id: submissionId,
-    userId: req.user?.userId,
-    status: 'pending',
-    documents: files?.map((f) => f.filename) || [],
-    submittedAt: new Date().toISOString(),
-    reviewedAt: null,
-    rejectionReason: null
-  };
-  
-  kycSubmissions.set(submissionId, submission);
-  
-  res.json({
-    success: true,
-    message: "KYC documents uploaded successfully",
-    submissionId
-  });
-});
-
-app.get('/api/kyc/status', authenticateToken, (req: Request, res: Response) => {
-  const submission = Array.from(kycSubmissions.values())
-    .find((s: any) => s.userId === req.user?.userId);
-  
-  if (!submission) {
-    return res.json({
+app.post('/api/kyc/submit', authenticateToken, upload.array('documents'), async (req: Request, res: Response) => {
+  try {
+    const files = req.files as Express.Multer.File[];
+    const submission = new KycSubmission({
+      userId: req.user?.userId,
       status: 'pending',
-      submittedAt: null,
-      reviewedAt: null,
-      rejectionReason: null
+      documents: files?.map((f) => f.filename) || []
     });
+    
+    await submission.save();
+    
+    res.json({
+      success: true,
+      message: "KYC documents submitted successfully",
+      submissionId: submission._id
+    });
+  } catch (error) {
+    console.error('KYC submit error:', error);
+    res.status(500).json({ error: 'KYC submission failed' });
   }
-  
-  res.json({
-    status: submission.status,
-    submittedAt: submission.submittedAt,
-    reviewedAt: submission.reviewedAt,
-    rejectionReason: submission.rejectionReason
-  });
+});
+
+app.post('/api/kyc/upload', authenticateToken, upload.array('documents'), async (req: Request, res: Response) => {
+  try {
+    const files = req.files as Express.Multer.File[];
+    const submission = new KycSubmission({
+      userId: req.user?.userId,
+      status: 'pending',
+      documents: files?.map((f) => f.filename) || []
+    });
+    
+    await submission.save();
+    
+    res.json({
+      success: true,
+      message: "KYC documents uploaded successfully",
+      submissionId: submission._id
+    });
+  } catch (error) {
+    console.error('KYC upload error:', error);
+    res.status(500).json({ error: 'KYC upload failed' });
+  }
+});
+
+app.get('/api/kyc/status', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const submission = await KycSubmission.findOne({ userId: req.user?.userId })
+      .sort({ createdAt: -1 });
+    
+    if (!submission) {
+      return res.json({
+        status: 'pending',
+        submittedAt: null,
+        reviewedAt: null,
+        rejectionReason: null
+      });
+    }
+    
+    res.json({
+      status: submission.status,
+      submittedAt: submission.submittedAt,
+      reviewedAt: submission.reviewedAt,
+      rejectionReason: submission.rejectionReason
+    });
+  } catch (error) {
+    console.error('KYC status error:', error);
+    res.status(500).json({ error: 'Failed to get KYC status' });
+  }
 });
 
 // 3. Asset & Tokenization Endpoints
-app.post('/api/assets/pledge', authenticateToken, (req: Request, res: Response) => {
-  const { assetType, estimatedValue, description, documents } = req.body;
-  const assetId = generateId();
-  
-  const asset = {
-    id: assetId,
-    userId: req.user?.userId,
-    assetType: assetType,
-    estimatedValue: parseFloat(estimatedValue) || 0,
-    description,
-    status: 'under_review',
-    documents: documents || [],
-    submittedAt: new Date().toISOString(),
-    reviewedAt: null,
-    approvedAt: null,
-    rejectionReason: null
-  };
-  
-  assets.set(assetId, asset);
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Asset Pledged',
-    description: `Pledged ${assetType} asset worth $${(parseFloat(estimatedValue) || 0).toLocaleString()}`,
-    amount: parseFloat(estimatedValue) || 0,
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    assetId,
-    message: "Asset pledged successfully"
-  });
-});
-
-app.get('/api/assets/mine', authenticateToken, (req: Request, res: Response) => {
-  const userAssets = Array.from(assets.values())
-    .filter((asset: any) => asset.userId === req.user?.userId);
-  
-  res.json(userAssets);
-});
-
-app.get('/api/assets/pledged', authenticateToken, (req: Request, res: Response) => {
-  const userAssets = Array.from(assets.values())
-    .filter((asset: any) => asset.userId === req.user?.userId);
-  
-  res.json(userAssets);
-});
-
-app.get('/api/assets/my-assets', authenticateToken, (req: Request, res: Response) => {
-  const userAssets = Array.from(assets.values())
-    .filter((asset: any) => asset.userId === req.user?.userId);
-  
-  res.json(userAssets);
-});
-
-app.post('/api/assets/:id/mint', authenticateToken, (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { tokenName, tokenSymbol, totalSupply, pricePerToken, decimals, fractional, tokenType } = req.body;
-  
-  const asset = assets.get(id);
-  if (!asset || asset.userId !== req.user?.userId) {
-    return res.status(404).json({ error: 'Asset not found' });
-  }
-  
-  if (asset.status !== 'approved') {
-    return res.status(400).json({ error: 'Asset must be approved before minting' });
-  }
-  
-  const tokenId = generateId();
-  const contractAddress = '0x' + Math.random().toString(16).substr(2, 40);
-  
-  const token = {
-    id: tokenId,
-    assetId: id,
-    tokenName,
-    tokenSymbol,
-    totalSupply: parseInt(totalSupply) || 0,
-    pricePerToken: parseFloat(pricePerToken) || 0,
-    decimals: parseInt(decimals) || 18,
-    fractional: fractional || false,
-    tokenType: tokenType || 'ERC20',
-    contractAddress,
-    createdAt: new Date().toISOString()
-  };
-  
-  tokens.set(tokenId, token);
-  
-  // Update asset status
-  asset.status = 'tokenized';
-  asset.tokenId = tokenId;
-  asset.contractAddress = contractAddress;
-  assets.set(id, asset);
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Token Minted',
-    description: `Minted ${totalSupply} ${tokenSymbol} tokens for ${asset.assetType}`,
-    amount: parseFloat(pricePerToken) * parseInt(totalSupply),
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    tokenId,
-    contractAddress,
-    token,
-    message: "Token minted successfully"
-  });
-});
-
-app.get('/api/assets/marketplace', authenticateToken, (req: Request, res: Response) => {
-  const marketplaceAssets = Array.from(assets.values())
-    .filter((asset: any) => asset.status === 'tokenized')
-    .map((asset: any) => {
-      const token = Array.from(tokens.values()).find((t: any) => t.assetId === asset.id);
-      return {
-        id: asset.id,
-        tokenId: token?.id,
-        tokenSymbol: token?.tokenSymbol || 'TKN',
-        assetName: asset.description,
-        assetType: asset.assetType,
-        price: token?.pricePerToken || 25,
-        change24h: (Math.random() - 0.5) * 10, // Random change for demo
-        availableTokens: Math.floor((token?.totalSupply || 1000) * 0.25),
-        totalSupply: token?.totalSupply || 1000,
-        contractAddress: token?.contractAddress
-      };
+app.post('/api/assets/pledge', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { assetType, estimatedValue, description, documents } = req.body;
+    
+    const asset = new Asset({
+      userId: req.user?.userId,
+      assetType,
+      estimatedValue: parseFloat(estimatedValue) || 0,
+      description,
+      status: 'under_review',
+      documents: documents || []
     });
-  
-  res.json(marketplaceAssets);
+    
+    await asset.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Asset Pledged',
+      description: `Pledged ${assetType} asset worth $${(parseFloat(estimatedValue) || 0).toLocaleString()}`,
+      amount: parseFloat(estimatedValue) || 0,
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      assetId: asset._id,
+      message: "Asset pledged successfully"
+    });
+  } catch (error) {
+    console.error('Asset pledge error:', error);
+    res.status(500).json({ error: 'Asset pledge failed' });
+  }
+});
+
+app.get('/api/assets/mine', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const assets = await Asset.find({ userId: req.user?.userId }).sort({ createdAt: -1 });
+    res.json(assets);
+  } catch (error) {
+    console.error('Get assets error:', error);
+    res.status(500).json({ error: 'Failed to get assets' });
+  }
+});
+
+app.get('/api/assets/pledged', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const assets = await Asset.find({ userId: req.user?.userId }).sort({ createdAt: -1 });
+    res.json(assets);
+  } catch (error) {
+    console.error('Get pledged assets error:', error);
+    res.status(500).json({ error: 'Failed to get pledged assets' });
+  }
+});
+
+app.get('/api/assets/my-assets', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const assets = await Asset.find({ userId: req.user?.userId }).sort({ createdAt: -1 });
+    res.json(assets);
+  } catch (error) {
+    console.error('Get my assets error:', error);
+    res.status(500).json({ error: 'Failed to get assets' });
+  }
+});
+
+app.post('/api/assets/:id/mint', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { tokenName, tokenSymbol, totalSupply, pricePerToken, decimals, fractional, tokenType } = req.body;
+    
+    // Validate ObjectId format
+    if (!id || id === 'undefined' || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: 'Invalid asset ID provided' });
+    }
+    
+    const asset = await Asset.findOne({ _id: id, userId: req.user?.userId });
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+    
+    if (asset.status !== 'approved') {
+      return res.status(400).json({ error: 'Asset must be approved before minting' });
+    }
+    
+    const contractAddress = '0x' + Math.random().toString(16).substr(2, 40);
+    
+    const token = new Token({
+      assetId: id,
+      tokenName,
+      tokenSymbol,
+      totalSupply: parseInt(totalSupply) || 0,
+      pricePerToken: parseFloat(pricePerToken) || 0,
+      decimals: parseInt(decimals) || 18,
+      fractional: fractional || false,
+      tokenType: tokenType || 'ERC20',
+      contractAddress
+    });
+    
+    await token.save();
+    
+    // Update asset status
+    asset.status = 'tokenized';
+    asset.tokenId = token._id;
+    asset.contractAddress = contractAddress;
+    await asset.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Token Minted',
+      description: `Minted ${totalSupply} ${tokenSymbol} tokens for ${asset.assetType}`,
+      amount: parseFloat(pricePerToken) * parseInt(totalSupply),
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      tokenId: token._id,
+      contractAddress,
+      token,
+      message: "Token minted successfully"
+    });
+  } catch (error) {
+    console.error('Token mint error:', error);
+    res.status(500).json({ error: 'Token minting failed' });
+  }
+});
+
+app.get('/api/assets/marketplace', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const assets = await Asset.find({ status: 'tokenized' })
+      .populate('tokenId')
+      .sort({ createdAt: -1 });
+    
+    const marketplaceAssets = assets.map((asset: any) => ({
+      id: asset._id,
+      tokenId: asset.tokenId?._id,
+      tokenSymbol: asset.tokenId?.tokenSymbol || 'TKN',
+      assetName: asset.description,
+      assetType: asset.assetType,
+      price: asset.tokenId?.pricePerToken || 25,
+      change24h: (Math.random() - 0.5) * 10, // Random change for demo
+      availableTokens: Math.floor((asset.tokenId?.totalSupply || 1000) * 0.25),
+      totalSupply: asset.tokenId?.totalSupply || 1000,
+      contractAddress: asset.tokenId?.contractAddress
+    }));
+    
+    res.json(marketplaceAssets);
+  } catch (error) {
+    console.error('Get marketplace assets error:', error);
+    res.status(500).json({ error: 'Failed to get marketplace assets' });
+  }
 });
 
 // 4. Marketplace Endpoints
-app.get('/api/marketplace/listings', authenticateToken, (req: Request, res: Response) => {
-  const listings = [
-    {
-      id: "listing1",
-      tokenSymbol: "REI",
-      assetName: "Downtown Apartment Complex",
-      assetType: "Real Estate",
-      nav: 2500000,
-      totalSupply: 100000,
-      availableTokens: 25000,
-      price: 25.00,
-      change24h: 2.5,
-      liquidity: 625000,
-    },
-    {
-      id: "listing2", 
-      tokenSymbol: "GOLD",
-      assetName: "Gold Bars Collection",
-      assetType: "Gold",
-      nav: 1000000,
-      totalSupply: 50000,
-      availableTokens: 12500,
-      price: 20.00,
-      change24h: -1.2,
-      liquidity: 250000,
-    },
-    {
-      id: "listing3",
-      tokenSymbol: "ART",
-      assetName: "Renaissance Art Collection",
-      assetType: "Art & Collectibles",
-      nav: 5000000,
-      totalSupply: 200000,
-      availableTokens: 75000,
-      price: 25.00,
-      change24h: 5.8,
-      liquidity: 1875000,
-    }
-  ];
-  
-  res.json(listings);
+app.get('/api/marketplace/listings', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    // For now, return hardcoded listings as before, but you can implement dynamic listings later
+    const listings = [
+      {
+        id: "listing1",
+        tokenSymbol: "REI",
+        assetName: "Downtown Apartment Complex",
+        assetType: "Real Estate",
+        nav: 2500000,
+        totalSupply: 100000,
+        availableTokens: 25000,
+        price: 25.00,
+        change24h: 2.5,
+        liquidity: 625000,
+      },
+      {
+        id: "listing2", 
+        tokenSymbol: "GOLD",
+        assetName: "Gold Bars Collection",
+        assetType: "Gold",
+        nav: 1000000,
+        totalSupply: 50000,
+        availableTokens: 12500,
+        price: 20.00,
+        change24h: -1.2,
+        liquidity: 250000,
+      },
+      {
+        id: "listing3",
+        tokenSymbol: "ART",
+        assetName: "Renaissance Art Collection",
+        assetType: "Art & Collectibles",
+        nav: 5000000,
+        totalSupply: 200000,
+        availableTokens: 75000,
+        price: 25.00,
+        change24h: 5.8,
+        liquidity: 1875000,
+      }
+    ];
+    
+    res.json(listings);
+  } catch (error) {
+    console.error('Get marketplace listings error:', error);
+    res.status(500).json({ error: 'Failed to get marketplace listings' });
+  }
 });
 
-app.post('/api/marketplace/buy', authenticateToken, (req: Request, res: Response) => {
-  const { tokenId, amount } = req.body;
-  const transactionId = generateId();
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Token Purchase',
-    description: `Bought ${amount} tokens`,
-    amount: amount,
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    transactionId,
-    message: "Purchase successful"
-  });
+app.post('/api/marketplace/buy', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { tokenId, amount } = req.body;
+    
+    const transaction = new Transaction({
+      userId: req.user?.userId,
+      type: 'buy',
+      tokenId,
+      amount,
+      totalValue: amount,
+      status: 'completed'
+    });
+    
+    await transaction.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Token Purchase',
+      description: `Bought ${amount} tokens`,
+      amount,
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      transactionId: transaction._id,
+      message: "Purchase successful"
+    });
+  } catch (error) {
+    console.error('Marketplace buy error:', error);
+    res.status(500).json({ error: 'Purchase failed' });
+  }
 });
 
-app.post('/api/marketplace/buy/:tokenId', authenticateToken, (req: Request, res: Response) => {
-  const { tokenId } = req.params;
-  const { amount } = req.body;
-  const transactionId = generateId();
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Token Purchase',
-    description: `Bought ${amount} tokens (${tokenId})`,
-    amount: amount,
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    transactionId,
-    message: "Purchase successful"
-  });
+app.post('/api/marketplace/buy/:tokenId', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { tokenId } = req.params;
+    const { amount } = req.body;
+    
+    const transaction = new Transaction({
+      userId: req.user?.userId,
+      type: 'buy',
+      tokenId,
+      amount,
+      totalValue: amount,
+      status: 'completed'
+    });
+    
+    await transaction.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Token Purchase',
+      description: `Bought ${amount} tokens (${tokenId})`,
+      amount,
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      transactionId: transaction._id,
+      message: "Purchase successful"
+    });
+  } catch (error) {
+    console.error('Marketplace buy by ID error:', error);
+    res.status(500).json({ error: 'Purchase failed' });
+  }
 });
 
-app.post('/api/marketplace/sell', authenticateToken, (req: Request, res: Response) => {
-  const { tokenId, amount, price } = req.body;
-  const listingId = generateId();
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Token Sale',
-    description: `Listed ${amount} tokens for sale at $${price}`,
-    amount: amount,
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    listingId,
-    message: "Asset listed for sale"
-  });
+app.post('/api/marketplace/sell', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { tokenId, amount, price } = req.body;
+    
+    const listing = new MarketplaceListing({
+      tokenId,
+      sellerId: req.user?.userId,
+      amount,
+      pricePerToken: price,
+      totalPrice: amount * price,
+      status: 'active'
+    });
+    
+    await listing.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Token Sale',
+      description: `Listed ${amount} tokens for sale at ${price}`,
+      amount,
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      listingId: listing._id,
+      message: "Asset listed for sale"
+    });
+  } catch (error) {
+    console.error('Marketplace sell error:', error);
+    res.status(500).json({ error: 'Listing failed' });
+  }
 });
 
-app.post('/api/marketplace/sell/:tokenId', authenticateToken, (req: Request, res: Response) => {
-  const { tokenId } = req.params;
-  const { amount, price } = req.body;
-  const listingId = generateId();
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Token Sale',
-    description: `Listed ${amount} tokens for sale at $${price} (${tokenId})`,
-    amount: amount,
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    listingId,
-    message: "Asset listed for sale"
-  });
+app.post('/api/marketplace/sell/:tokenId', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { tokenId } = req.params;
+    const { amount, price } = req.body;
+    
+    const listing = new MarketplaceListing({
+      tokenId,
+      sellerId: req.user?.userId,
+      amount,
+      pricePerToken: price,
+      totalPrice: amount * price,
+      status: 'active'
+    });
+    
+    await listing.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Token Sale',
+      description: `Listed ${amount} tokens for sale at ${price} (${tokenId})`,
+      amount,
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      listingId: listing._id,
+      message: "Asset listed for sale"
+    });
+  } catch (error) {
+    console.error('Marketplace sell by ID error:', error);
+    res.status(500).json({ error: 'Listing failed' });
+  }
 });
 
 // 5. Liquidity Pool Endpoints
-app.get('/api/liquidity/pools', authenticateToken, (req: Request, res: Response) => {
-  res.json(pools);
+app.get('/api/liquidity/pools', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const pools = await LiquidityPool.find({ isActive: true }).sort({ createdAt: -1 });
+    
+    // Add user's liquidity positions
+    const poolsWithUserData = await Promise.all(pools.map(async (pool) => {
+      const userPosition = await LiquidityPosition.findOne({
+        userId: req.user?.userId,
+        poolId: pool._id
+      });
+      
+      return {
+        id: pool._id,
+        name: pool.name,
+        tokenA: pool.tokenA,
+        tokenB: pool.tokenB,
+        apr: pool.apr,
+        totalLiquidity: pool.totalLiquidity,
+        myLiquidity: userPosition?.amount || 0,
+        volume24h: pool.volume24h,
+        fees24h: pool.fees24h
+      };
+    }));
+    
+    res.json(poolsWithUserData);
+  } catch (error) {
+    console.error('Get liquidity pools error:', error);
+    res.status(500).json({ error: 'Failed to get liquidity pools' });
+  }
 });
 
-app.post('/api/liquidity/provide', authenticateToken, (req: Request, res: Response) => {
-  const { poolId, amount } = req.body;
-  const transactionId = generateId();
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Liquidity Provided',
-    description: `Provided $${amount?.toLocaleString()} to liquidity pool`,
-    amount: amount,
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    transactionId,
-    lpTokens: Math.floor(amount * 0.1),
-    message: "Liquidity provided successfully"
-  });
+app.post('/api/liquidity/provide', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { poolId, amount } = req.body;
+    
+    const pool = await LiquidityPool.findById(poolId);
+    if (!pool) {
+      return res.status(404).json({ error: 'Pool not found' });
+    }
+    
+    const lpTokens = Math.floor(amount * 0.1);
+    
+    // Create or update liquidity position
+    const existingPosition = await LiquidityPosition.findOne({
+      userId: req.user?.userId,
+      poolId
+    });
+    
+    if (existingPosition) {
+      existingPosition.amount += amount;
+      existingPosition.lpTokens += lpTokens;
+      await existingPosition.save();
+    } else {
+      const position = new LiquidityPosition({
+        userId: req.user?.userId,
+        poolId,
+        amount,
+        lpTokens,
+        entryPrice: amount / lpTokens
+      });
+      await position.save();
+    }
+    
+    // Update pool liquidity
+    pool.totalLiquidity += amount;
+    await pool.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Liquidity Provided',
+      description: `Provided ${amount?.toLocaleString()} to liquidity pool`,
+      amount,
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      transactionId: activity._id,
+      lpTokens,
+      message: "Liquidity provided successfully"
+    });
+  } catch (error) {
+    console.error('Liquidity provide error:', error);
+    res.status(500).json({ error: 'Liquidity provision failed' });
+  }
 });
 
-app.post('/api/liquidity/add', authenticateToken, (req: Request, res: Response) => {
-  const { poolId, amount } = req.body;
-  const transactionId = generateId();
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Liquidity Added',
-    description: `Added $${amount?.toLocaleString()} to liquidity pool`,
-    amount: amount,
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    transactionId,
-    lpTokens: Math.floor(amount * 0.1),
-    message: "Liquidity added successfully"
-  });
+app.post('/api/liquidity/add', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { poolId, amount } = req.body;
+    
+    const pool = await LiquidityPool.findById(poolId);
+    if (!pool) {
+      return res.status(404).json({ error: 'Pool not found' });
+    }
+    
+    const lpTokens = Math.floor(amount * 0.1);
+    
+    // Create or update liquidity position
+    const existingPosition = await LiquidityPosition.findOne({
+      userId: req.user?.userId,
+      poolId
+    });
+    
+    if (existingPosition) {
+      existingPosition.amount += amount;
+      existingPosition.lpTokens += lpTokens;
+      await existingPosition.save();
+    } else {
+      const position = new LiquidityPosition({
+        userId: req.user?.userId,
+        poolId,
+        amount,
+        lpTokens,
+        entryPrice: amount / lpTokens
+      });
+      await position.save();
+    }
+    
+    // Update pool liquidity
+    pool.totalLiquidity += amount;
+    await pool.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Liquidity Added',
+      description: `Added ${amount?.toLocaleString()} to liquidity pool`,
+      amount,
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      transactionId: activity._id,
+      lpTokens,
+      message: "Liquidity added successfully"
+    });
+  } catch (error) {
+    console.error('Liquidity add error:', error);
+    res.status(500).json({ error: 'Liquidity addition failed' });
+  }
 });
 
-app.post('/api/liquidity/withdraw', authenticateToken, (req: Request, res: Response) => {
-  const { poolId, amount } = req.body;
-  const transactionId = generateId();
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Liquidity Withdrawn',
-    description: `Withdrew $${amount?.toLocaleString()} from liquidity pool`,
-    amount: amount,
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    transactionId,
-    message: "Liquidity withdrawn successfully"
-  });
+app.post('/api/liquidity/withdraw', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { poolId, amount } = req.body;
+    
+    const position = await LiquidityPosition.findOne({
+      userId: req.user?.userId,
+      poolId
+    });
+    
+    if (!position || position.amount < amount) {
+      return res.status(400).json({ error: 'Insufficient liquidity position' });
+    }
+    
+    const pool = await LiquidityPool.findById(poolId);
+    if (!pool) {
+      return res.status(404).json({ error: 'Pool not found' });
+    }
+    
+    // Update position
+    position.amount -= amount;
+    position.lpTokens -= Math.floor(amount * 0.1);
+    
+    if (position.amount <= 0) {
+      await LiquidityPosition.deleteOne({ _id: position._id });
+    } else {
+      await position.save();
+    }
+    
+    // Update pool liquidity
+    pool.totalLiquidity -= amount;
+    await pool.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Liquidity Withdrawn',
+      description: `Withdrew ${amount?.toLocaleString()} from liquidity pool`,
+      amount,
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      transactionId: activity._id,
+      message: "Liquidity withdrawn successfully"
+    });
+  } catch (error) {
+    console.error('Liquidity withdraw error:', error);
+    res.status(500).json({ error: 'Liquidity withdrawal failed' });
+  }
 });
 
-app.post('/api/liquidity/remove', authenticateToken, (req: Request, res: Response) => {
-  const { poolId, amount } = req.body;
-  const transactionId = generateId();
-  
-  // Add activity
-  const activityId = generateId();
-  activities.set(activityId, {
-    id: activityId,
-    userId: req.user?.userId,
-    type: 'Liquidity Removed',
-    description: `Removed $${amount?.toLocaleString()} from liquidity pool`,
-    amount: amount,
-    status: 'completed',
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json({
-    success: true,
-    transactionId,
-    message: "Liquidity removed successfully"
-  });
+app.post('/api/liquidity/remove', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { poolId, amount } = req.body;
+    
+    const position = await LiquidityPosition.findOne({
+      userId: req.user?.userId,
+      poolId
+    });
+    
+    if (!position || position.amount < amount) {
+      return res.status(400).json({ error: 'Insufficient liquidity position' });
+    }
+    
+    const pool = await LiquidityPool.findById(poolId);
+    if (!pool) {
+      return res.status(404).json({ error: 'Pool not found' });
+    }
+    
+    // Update position
+    position.amount -= amount;
+    position.lpTokens -= Math.floor(amount * 0.1);
+    
+    if (position.amount <= 0) {
+      await LiquidityPosition.deleteOne({ _id: position._id });
+    } else {
+      await position.save();
+    }
+    
+    // Update pool liquidity
+    pool.totalLiquidity -= amount;
+    await pool.save();
+    
+    // Add activity
+    const activity = new Activity({
+      userId: req.user?.userId,
+      type: 'Liquidity Removed',
+      description: `Removed ${amount?.toLocaleString()} from liquidity pool`,
+      amount,
+      status: 'completed'
+    });
+    
+    await activity.save();
+    
+    res.json({
+      success: true,
+      transactionId: activity._id,
+      message: "Liquidity removed successfully"
+    });
+  } catch (error) {
+    console.error('Liquidity remove error:', error);
+    res.status(500).json({ error: 'Liquidity removal failed' });
+  }
 });
 
 // 6. Activity Endpoints
-app.get('/api/activity/mine', authenticateToken, (req: Request, res: Response) => {
-  const userActivities = Array.from(activities.values())
-    .filter((activity: any) => activity.userId === req.user?.userId)
-    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  
-  res.json(userActivities);
+app.get('/api/activity/mine', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const activities = await Activity.find({ userId: req.user?.userId })
+      .sort({ timestamp: -1 });
+    
+    res.json(activities);
+  } catch (error) {
+    console.error('Get activities error:', error);
+    res.status(500).json({ error: 'Failed to get activities' });
+  }
 });
 
-app.get('/api/activity/my-activity', authenticateToken, (req: Request, res: Response) => {
-  const userActivities = Array.from(activities.values())
-    .filter((activity: any) => activity.userId === req.user?.userId)
-    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  
-  res.json(userActivities);
+app.get('/api/activity/my-activity', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const activities = await Activity.find({ userId: req.user?.userId })
+      .sort({ timestamp: -1 });
+    
+    res.json(activities);
+  } catch (error) {
+    console.error('Get my activities error:', error);
+    res.status(500).json({ error: 'Failed to get activities' });
+  }
+});
+
+// 6.1 Dashboard Analytics Endpoints
+app.get('/api/dashboard/stats', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    // Get user's assets and calculate portfolio value
+    const userAssets = await Asset.find({ userId });
+    const userTokens = await Token.find({ assetId: { $in: userAssets.map(a => a._id) } });
+    const userTransactions = await Transaction.find({ userId });
+    const userLiquidityPositions = await LiquidityPosition.find({ userId });
+
+    // Calculate total portfolio value
+    const portfolioValue = userAssets.reduce((sum, asset) => sum + (asset.estimatedValue || 0), 0);
+    
+    // Calculate total invested (from transactions)
+    const totalInvested = userTransactions
+      .filter(t => t.type === 'buy')
+      .reduce((sum, t) => sum + (t.totalValue || 0), 0);
+
+    // Calculate total liquidity provided
+    const totalLiquidity = userLiquidityPositions.reduce((sum, pos) => sum + (pos.amount || 0), 0);
+
+    // Calculate 24h change (simulated)
+    const change24h = (Math.random() - 0.5) * 10; // Random change for demo
+    const changeAmount = portfolioValue * (change24h / 100);
+
+    // Count assets by status
+    const activeAssets = userAssets.filter(a => a.status === 'tokenized').length;
+    const pendingAssets = userAssets.filter(a => a.status === 'under_review').length;
+
+    res.json({
+      portfolioValue,
+      totalInvested,
+      totalLiquidity,
+      change24h,
+      changeAmount,
+      totalAssets: userAssets.length,
+      activeAssets,
+      pendingAssets,
+      totalTokens: userTokens.length,
+      totalTransactions: userTransactions.length
+    });
+  } catch (error) {
+    console.error('Dashboard stats error:', error);
+    res.status(500).json({ error: 'Failed to get dashboard stats' });
+  }
+});
+
+app.get('/api/dashboard/portfolio-breakdown', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const userAssets = await Asset.find({ userId });
+
+    // Group assets by type and calculate values
+    const breakdown = userAssets.reduce((acc: any, asset) => {
+      const type = asset.assetType;
+      const value = asset.estimatedValue || 0;
+      
+      if (!acc[type]) {
+        acc[type] = {
+          type,
+          value: 0,
+          count: 0,
+          percentage: 0
+        };
+      }
+      
+      acc[type].value += value;
+      acc[type].count += 1;
+      
+      return acc;
+    }, {});
+
+    // Calculate total value for percentages
+    const totalValue = Object.values(breakdown).reduce((sum: number, item: any) => sum + item.value, 0);
+
+    // Calculate percentages and convert to array
+    const portfolioBreakdown = Object.values(breakdown).map((item: any) => ({
+      ...item,
+      percentage: totalValue > 0 ? (item.value / totalValue) * 100 : 0
+    }));
+
+    res.json(portfolioBreakdown);
+  } catch (error) {
+    console.error('Portfolio breakdown error:', error);
+    res.status(500).json({ error: 'Failed to get portfolio breakdown' });
+  }
+});
+
+app.get('/api/dashboard/recent-activity', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const activities = await Activity.find({ userId })
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalActivities = await Activity.countDocuments({ userId });
+    const totalPages = Math.ceil(totalActivities / limit);
+
+    res.json({
+      activities,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: totalActivities,
+        hasMore: page < totalPages
+      }
+    });
+  } catch (error) {
+    console.error('Recent activity error:', error);
+    res.status(500).json({ error: 'Failed to get recent activity' });
+  }
+});
+
+app.get('/api/dashboard/asset-performance', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const userAssets = await Asset.find({ userId }).populate('tokenId');
+
+    const assetPerformance = userAssets.map((asset: any) => {
+      const token = asset.tokenId;
+      const currentPrice = token?.pricePerToken || 25;
+      const initialValue = asset.estimatedValue || 0;
+      
+      // Simulate performance metrics
+      const change24h = (Math.random() - 0.5) * 10;
+      const change7d = (Math.random() - 0.5) * 20;
+      const change30d = (Math.random() - 0.5) * 40;
+      
+      const volume24h = Math.random() * 100000;
+      const liquidity = token?.totalSupply * currentPrice * 0.1 || 0;
+
+      return {
+        assetId: asset._id,
+        assetName: asset.description,
+        assetType: asset.assetType,
+        tokenSymbol: token?.tokenSymbol || 'TKN',
+        currentPrice,
+        initialValue,
+        currentValue: token?.totalSupply * currentPrice || initialValue,
+        change24h,
+        change7d,
+        change30d,
+        volume24h,
+        liquidity,
+        status: asset.status
+      };
+    });
+
+    res.json(assetPerformance);
+  } catch (error) {
+    console.error('Asset performance error:', error);
+    res.status(500).json({ error: 'Failed to get asset performance' });
+  }
+});
+
+app.get('/api/dashboard/market-overview', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    // Get market-wide statistics
+    const totalAssets = await Asset.countDocuments();
+    const tokenizedAssets = await Asset.countDocuments({ status: 'tokenized' });
+    const totalTokens = await Token.countDocuments();
+    const totalTransactions = await Transaction.countDocuments();
+    const totalUsers = await User.countDocuments();
+    
+    // Calculate total market value
+    const allAssets = await Asset.find();
+    const totalMarketValue = allAssets.reduce((sum, asset) => sum + (asset.estimatedValue || 0), 0);
+    
+    // Get liquidity pool stats
+    const liquidityPools = await LiquidityPool.find({ isActive: true });
+    const totalLiquidity = liquidityPools.reduce((sum, pool) => sum + (pool.totalLiquidity || 0), 0);
+    const total24hVolume = liquidityPools.reduce((sum, pool) => sum + (pool.volume24h || 0), 0);
+    
+    // Simulate market metrics
+    const marketChange24h = (Math.random() - 0.5) * 5; // Market tends to be less volatile
+    const topPerformingAsset = {
+      name: "Downtown Commercial Complex",
+      symbol: "DCC",
+      change: Math.random() * 15 + 5 // Always positive for top performer
+    };
+    
+    // Asset type distribution
+    const assetTypes = await Asset.aggregate([
+      { $group: { _id: '$assetType', count: { $sum: 1 }, value: { $sum: '$estimatedValue' } } },
+      { $sort: { value: -1 } }
+    ]);
+
+    res.json({
+      totalMarketValue,
+      marketChange24h,
+      totalAssets,
+      tokenizedAssets,
+      totalTokens,
+      totalTransactions,
+      totalUsers,
+      totalLiquidity,
+      total24hVolume,
+      topPerformingAsset,
+      assetTypeDistribution: assetTypes,
+      marketMetrics: {
+        averageAssetValue: totalAssets > 0 ? totalMarketValue / totalAssets : 0,
+        tokenizationRate: totalAssets > 0 ? (tokenizedAssets / totalAssets) * 100 : 0,
+        liquidityRatio: totalMarketValue > 0 ? (totalLiquidity / totalMarketValue) * 100 : 0
+      }
+    });
+  } catch (error) {
+    console.error('Market overview error:', error);
+    res.status(500).json({ error: 'Failed to get market overview' });
+  }
 });
 
 // 7. Health Check
@@ -750,7 +1137,8 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
-    version: "1.0.0"
+    version: "1.0.0",
+    database: "MongoDB"
   });
 });
 
@@ -760,6 +1148,7 @@ app.get('/', (req: Request, res: Response) => {
     message: "RWA Tokenization Backend API",
     version: "1.0.0",
     status: "running",
+    database: "MongoDB",
     endpoints: {
       authentication: [
         "POST /api/auth/register - Register new user",
@@ -797,16 +1186,20 @@ app.get('/', (req: Request, res: Response) => {
         "GET /api/activity/mine - Get user activities",
         "GET /api/activity/my-activity - Get my activities"
       ],
+      dashboard: [
+        "GET /api/dashboard/stats - Overall dashboard statistics",
+        "GET /api/dashboard/portfolio-breakdown - Asset distribution by type",
+        "GET /api/dashboard/recent-activity - Recent user activities with pagination",
+        "GET /api/dashboard/asset-performance - Asset metrics and performance",
+        "GET /api/dashboard/market-overview - Market-wide statistics"
+      ],
       system: [
         "GET /api/health - Health check"
       ]
     },
     sampleData: {
       testUser: "test@test.com",
-      testPassword: "password123",
-      assetsCount: assets.size,
-      activitiesCount: activities.size,
-      poolsCount: pools.length
+      testPassword: "password123"
     }
   });
 });
@@ -827,6 +1220,13 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     return res.status(401).json({ 
       error: 'Unauthorized',
       message: 'Invalid token' 
+    });
+  }
+  
+  if (err.name === 'MongoError' || err.name === 'MongooseError') {
+    return res.status(500).json({ 
+      error: 'Database Error',
+      message: 'Database operation failed'
     });
   }
   
@@ -855,11 +1255,9 @@ app.listen(PORT, () => {
   console.log(`📊 API endpoints available for frontend`);
   console.log(`🏥 Health check: http://localhost:${PORT}/api/health`);
   console.log(`📝 API docs: http://localhost:${PORT}/`);
-  console.log(`✅ All ${Object.values({
-    auth: 3, kyc: 3, assets: 6, marketplace: 5, 
-    liquidity: 5, activity: 2, system: 1
-  }).reduce((a, b) => a + b, 0)} endpoints ready for production`);
+  console.log(`✅ All 30 endpoints ready for production`);
   console.log(`🔧 Sample user: test@test.com / password123`);
+  console.log(`🗄️ Database: MongoDB Atlas`);
 });
 
 export default app;
