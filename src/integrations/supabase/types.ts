@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          metadata: Json | null
+          status: string | null
+          timestamp: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          metadata?: Json | null
+          status?: string | null
+          timestamp?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json | null
+          status?: string | null
+          timestamp?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       assets: {
         Row: {
           available_tokens: number
@@ -77,6 +113,387 @@ export type Database = {
           updated_at?: string
           value_amount?: number
           value_currency?: string
+        }
+        Relationships: []
+      }
+      kyc_submissions: {
+        Row: {
+          created_at: string
+          documents: string[] | null
+          id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          status: string | null
+          submitted_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          documents?: string[] | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+          submitted_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          documents?: string[] | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+          submitted_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      liquidity_pools: {
+        Row: {
+          apr: number | null
+          contract_address: string | null
+          created_at: string
+          fees_24h: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          token_a: string
+          token_a_id: string | null
+          token_b: string
+          token_b_id: string | null
+          total_liquidity: number | null
+          updated_at: string
+          volume_24h: number | null
+        }
+        Insert: {
+          apr?: number | null
+          contract_address?: string | null
+          created_at?: string
+          fees_24h?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          token_a: string
+          token_a_id?: string | null
+          token_b: string
+          token_b_id?: string | null
+          total_liquidity?: number | null
+          updated_at?: string
+          volume_24h?: number | null
+        }
+        Update: {
+          apr?: number | null
+          contract_address?: string | null
+          created_at?: string
+          fees_24h?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          token_a?: string
+          token_a_id?: string | null
+          token_b?: string
+          token_b_id?: string | null
+          total_liquidity?: number | null
+          updated_at?: string
+          volume_24h?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidity_pools_token_a_id_fkey"
+            columns: ["token_a_id"]
+            isOneToOne: false
+            referencedRelation: "tokens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidity_pools_token_b_id_fkey"
+            columns: ["token_b_id"]
+            isOneToOne: false
+            referencedRelation: "tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liquidity_positions: {
+        Row: {
+          amount: number
+          created_at: string
+          entry_price: number
+          id: string
+          lp_tokens: number
+          pool_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          entry_price: number
+          id?: string
+          lp_tokens: number
+          pool_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          entry_price?: number
+          id?: string
+          lp_tokens?: number
+          pool_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidity_positions_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "liquidity_pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_listings: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          price_per_token: number
+          seller_id: string
+          status: string | null
+          token_id: string
+          total_price: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          price_per_token: number
+          seller_id: string
+          status?: string | null
+          token_id: string
+          total_price: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          price_per_token?: number
+          seller_id?: string
+          status?: string | null
+          token_id?: string
+          total_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listings_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tokens: {
+        Row: {
+          asset_id: string
+          contract_address: string
+          created_at: string
+          decimals: number | null
+          fractional: boolean | null
+          id: string
+          price_per_token: number
+          token_name: string
+          token_symbol: string
+          token_type: string | null
+          total_supply: number
+          updated_at: string
+        }
+        Insert: {
+          asset_id: string
+          contract_address: string
+          created_at?: string
+          decimals?: number | null
+          fractional?: boolean | null
+          id?: string
+          price_per_token: number
+          token_name: string
+          token_symbol: string
+          token_type?: string | null
+          total_supply: number
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string
+          contract_address?: string
+          created_at?: string
+          decimals?: number | null
+          fractional?: boolean | null
+          id?: string
+          price_per_token?: number
+          token_name?: string
+          token_symbol?: string
+          token_type?: string | null
+          total_supply?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_tokens_asset_id"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "user_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tokens_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "user_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          blockchain_status: string | null
+          blockchain_tx_hash: string | null
+          created_at: string
+          id: string
+          price: number | null
+          status: string | null
+          token_id: string | null
+          total_value: number
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          blockchain_status?: string | null
+          blockchain_tx_hash?: string | null
+          created_at?: string
+          id?: string
+          price?: number | null
+          status?: string | null
+          token_id?: string | null
+          total_value: number
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          blockchain_status?: string | null
+          blockchain_tx_hash?: string | null
+          created_at?: string
+          id?: string
+          price?: number | null
+          status?: string | null
+          token_id?: string | null
+          total_value?: number
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_assets: {
+        Row: {
+          approved_at: string | null
+          asset_type: string
+          contract_address: string | null
+          created_at: string
+          description: string
+          documents: string[] | null
+          estimated_value: number
+          id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          status: string | null
+          submitted_at: string
+          token_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          asset_type: string
+          contract_address?: string | null
+          created_at?: string
+          description: string
+          documents?: string[] | null
+          estimated_value: number
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+          submitted_at?: string
+          token_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          asset_type?: string
+          contract_address?: string | null
+          created_at?: string
+          description?: string
+          documents?: string[] | null
+          estimated_value?: number
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+          submitted_at?: string
+          token_id?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
