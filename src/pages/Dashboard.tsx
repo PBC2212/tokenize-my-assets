@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { assetsApi, marketplaceApi, activityApi, dashboardApi } from "@/lib/api";
+import { useWallet } from "@/hooks/useWallet";
+import WalletConnect from "@/components/WalletConnect";
 import { 
   TrendingUp, 
   Wallet, 
@@ -40,12 +42,19 @@ interface MarketOverview {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { wallet } = useWallet();
 
   // Use Supabase-based dashboard endpoints
   const { data: dashboardStatsResponse, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: () => dashboardApi.stats().then(res => res.data),
     enabled: !!user,
+  });
+
+  const { data: userAssets, isLoading: assetsLoading } = useQuery({
+    queryKey: ['user-assets'],
+    queryFn: () => assetsApi.mine().then(res => res.data),
+    enabled: !!user && !!wallet.isConnected,
   });
 
   const { data: portfolioBreakdownResponse, isLoading: portfolioLoading } = useQuery({
@@ -96,7 +105,63 @@ const Dashboard = () => {
         </p>
       </div>
 
-      {/* Stats Cards - Now using real API data */}
+      {/* Wallet Connection Status */}
+      {!wallet.isConnected && (
+        <Card className="gradient-card border-0 animate-float border-amber-200/20 bg-amber-50/10">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Wallet className="h-6 w-6 text-amber-500" />
+              Connect Your Wallet
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Connect your MetaMask wallet to access all features and track your tokenized assets.
+            </p>
+            <WalletConnect />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Onboarding for new users */}
+      {(wallet.isConnected && !userAssets?.length && !assetsLoading) && (
+        <Card className="gradient-card border-0 animate-float">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Zap className="h-6 w-6 text-primary" />
+              Welcome to Asset Tokenization!
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Great! Your wallet is connected. Now get started by pledging your first asset. Follow our simple 3-step process:
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-2">
+                <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">1</span>
+                Pledge Asset
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="bg-secondary text-secondary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">2</span>
+                Get Approved
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="bg-accent text-accent-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">3</span>
+                Mint Tokens
+              </span>
+            </div>
+            <Button asChild className="w-full sm:w-auto">
+              <Link to="/assets">
+                <Plus className="w-4 h-4 mr-2" />
+                Pledge Your First Asset
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stats Cards - Show only when wallet is connected */}
+      {wallet.isConnected && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="gradient-card border-0 animate-float">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -167,9 +232,10 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* New User Onboarding */}
-      {assets.length === 0 && (
+      {userAssets?.length === 0 && (
         <Card className="gradient-card border-0 bg-gradient-to-r from-primary/10 to-accent/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
