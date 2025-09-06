@@ -74,8 +74,15 @@ serve(async (req) => {
     }: TokenMintRequest = JSON.parse(body)
 
     // Validate input
-    if (!assetId || !tokenName || !tokenSymbol || !totalSupply || !pricePerToken || !walletAddress || !transactionHash || totalSupply <= 0 || pricePerToken <= 0) {
-      throw new Error('Missing or invalid required fields including wallet address and transaction hash')
+    if (!assetId || !tokenName || !tokenSymbol || !totalSupply || !pricePerToken || totalSupply <= 0 || pricePerToken <= 0) {
+      throw new Error('Missing or invalid required fields')
+    }
+
+    // Check if this is a demo token (non-blockchain) request
+    const isDemoToken = !transactionHash || transactionHash.startsWith('demo-') || !walletAddress || walletAddress === 'demo'
+    
+    if (!isDemoToken && (!walletAddress || !transactionHash)) {
+      throw new Error('Missing wallet address and transaction hash for blockchain deployment')
     }
 
     // Verify asset ownership
@@ -94,76 +101,86 @@ serve(async (req) => {
       throw new Error('Asset must be approved before minting tokens')
     }
 
-    // Verify wallet connection
-    const { data: walletConnection, error: walletError } = await supabaseClient
-      .from('wallet_connections')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('wallet_address', walletAddress.toLowerCase())
-      .eq('is_verified', true)
-      .single()
+    // For demo tokens, skip wallet verification
+    if (!isDemoToken) {
+      // Verify wallet connection for real blockchain tokens only
+      const { data: walletConnection, error: walletError } = await supabaseClient
+        .from('wallet_connections')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('wallet_address', walletAddress.toLowerCase())
+        .eq('is_verified', true)
+        .single()
 
-    if (walletError || !walletConnection) {
-      throw new Error('Wallet not connected or verified')
+      if (walletError || !walletConnection) {
+        throw new Error('Wallet not connected or verified')
+      }
     }
 
-    // Connect to Ethereum network
-    const rpcUrl = Deno.env.get('ETHEREUM_RPC_URL')
-    if (!rpcUrl) {
-      throw new Error('Ethereum RPC URL not configured')
-    }
-
-    const provider = new ethers.JsonRpcProvider(rpcUrl)
-    
-    // Verify transaction exists and get contract address
+    // Verify blockchain transaction for real tokens only
     let contractAddress = '';
-    try {
-      const transaction = await provider.getTransaction(transactionHash)
-      if (!transaction) {
-        throw new Error('Transaction not found on blockchain')
+    
+    if (!isDemoToken) {
+      // Connect to Ethereum network
+      const rpcUrl = Deno.env.get('ETHEREUM_RPC_URL')
+      if (!rpcUrl) {
+        throw new Error('Ethereum RPC URL not configured')
       }
 
-      // Get transaction receipt to get contract address
-      const receipt = await provider.getTransactionReceipt(transactionHash)
-      if (!receipt) {
-        throw new Error('Transaction receipt not found')
-      }
-
-      if (receipt.status !== 1) {
-        throw new Error('Transaction failed on blockchain')
-      }
-
-      contractAddress = receipt.contractAddress || '';
-      if (!contractAddress) {
-        throw new Error('No contract address found in transaction receipt')
-      }
-
-      console.log(`Token contract deployed at: ${contractAddress}`)
-
-      // Verify contract is ERC20 token by checking methods exist
-      const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider)
+      const provider = new ethers.JsonRpcProvider(rpcUrl)
       
       try {
-        const name = await contract.name()
-        const symbol = await contract.symbol()
-        const supply = await contract.totalSupply()
-        const decimalsValue = await contract.decimals()
-        
-        console.log(`Verified ERC20 token: ${name} (${symbol}), Supply: ${supply.toString()}, Decimals: ${decimalsValue}`)
-        
-        // Validate token details match request
-        if (symbol !== tokenSymbol.toUpperCase()) {
-          console.warn(`Token symbol mismatch: expected ${tokenSymbol}, got ${symbol}`)
+        const transaction = await provider.getTransaction(transactionHash)
+        if (!transaction) {
+          throw new Error('Transaction not found on blockchain')
         }
-        
-      } catch (error) {
-        console.error('Error verifying contract:', error)
-        throw new Error('Invalid ERC20 contract or contract not yet available')
-      }
 
-    } catch (error) {
-      console.error('Blockchain verification error:', error)
-      throw new Error(`Failed to verify blockchain transaction: ${error.message}`)
+        // Get transaction receipt to get contract address
+        const receipt = await provider.getTransactionReceipt(transactionHash)
+        if (!receipt) {
+          throw new Error('Transaction receipt not found')
+        }
+
+        if (receipt.status !== 1) {
+          throw new Error('Transaction failed on blockchain')
+        }
+
+        contractAddress = receipt.contractAddress || '';
+        if (!contractAddress) {
+          throw new Error('No contract address found in transaction receipt')
+        }
+
+        console.log(`Token contract deployed at: ${contractAddress}`)
+
+        // Verify contract is ERC20 token by checking methods exist
+        const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider)
+        
+        try {
+          const name = await contract.name()
+          const symbol = await contract.symbol()
+          const supply = await contract.totalSupply()
+          const decimalsValue = await contract.decimals()
+          
+          console.log(`Verified ERC20 token: ${name} (${symbol}), Supply: ${supply.toString()}, Decimals: ${decimalsValue}`)
+          
+          // Validate token details match request
+          if (symbol !== tokenSymbol.toUpperCase()) {
+            console.warn(`Token symbol mismatch: expected ${tokenSymbol}, got ${symbol}`)
+          }
+          
+        } catch (error) {
+          console.error('Error verifying contract:', error)
+          throw new Error('Invalid ERC20 contract or contract not yet available')
+        }
+
+      } catch (error) {
+        console.error('Blockchain verification error:', error)
+        throw new Error(`Failed to verify blockchain transaction: ${error.message}`)
+      }
+    } else {
+      // For demo tokens, generate a mock contract address
+      contractAddress = `0xdemo${Math.random().toString(16).substr(2, 8)}`
+      console.log(`Demo token created with mock contract address: ${contractAddress}`)
     }
 
     // Create token record
@@ -178,7 +195,7 @@ serve(async (req) => {
         decimals: decimals || 18,
         contract_address: contractAddress,
         fractional: true,
-        token_type: 'ERC20'
+        token_type: isDemoToken ? 'Demo' : 'ERC20'
       })
       .select()
       .single()
@@ -198,23 +215,25 @@ serve(async (req) => {
       })
       .eq('id', assetId)
 
-    // Record blockchain transaction
-    await supabaseClient
-      .from('wallet_transactions')
-      .insert({
-        user_id: user.id,
-        wallet_address: walletAddress.toLowerCase(),
-        transaction_hash: transactionHash,
-        from_address: walletAddress.toLowerCase(),
-        to_address: contractAddress,
-        value_wei: '0',
-        value_eth: 0,
-        transaction_type: 'token_deployment',
-        status: 'confirmed',
-        token_contract_address: contractAddress,
-        token_symbol: tokenSymbol.toUpperCase(),
-        token_decimals: decimals || 18
-      })
+    // Record transaction for both demo and real tokens
+    if (!isDemoToken) {
+      await supabaseClient
+        .from('wallet_transactions')
+        .insert({
+          user_id: user.id,
+          wallet_address: walletAddress.toLowerCase(),
+          transaction_hash: transactionHash,
+          from_address: walletAddress.toLowerCase(),
+          to_address: contractAddress,
+          value_wei: '0',
+          value_eth: 0,
+          transaction_type: 'token_deployment',
+          status: 'confirmed',
+          token_contract_address: contractAddress,
+          token_symbol: tokenSymbol.toUpperCase(),
+          token_decimals: decimals || 18
+        })
+    }
 
     // Create activity record
     await supabaseClient
@@ -222,7 +241,7 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         type: 'token_minted',
-        description: `Minted ${totalSupply.toLocaleString()} ${tokenSymbol} tokens for ${asset.asset_type}`,
+        description: `Minted ${totalSupply.toLocaleString()} ${tokenSymbol} ${isDemoToken ? 'demo ' : ''}tokens for ${asset.asset_type}`,
         amount: totalSupply * pricePerToken,
         status: 'completed',
         metadata: {
@@ -232,8 +251,8 @@ serve(async (req) => {
           total_supply: totalSupply,
           price_per_token: pricePerToken,
           contract_address: contractAddress,
-          wallet_address: walletAddress,
-          transaction_hash: transactionHash
+          wallet_address: walletAddress || 'demo',
+          transaction_hash: transactionHash || 'demo'
         }
       })
 
@@ -258,7 +277,7 @@ serve(async (req) => {
           contractAddress,
           transactionHash
         },
-        message: 'Tokens minted successfully on blockchain and listed on marketplace' 
+        message: `${isDemoToken ? 'Demo tokens' : 'Tokens'} minted successfully${isDemoToken ? '' : ' on blockchain'} and listed on marketplace` 
       }),
       { 
         headers: { 
