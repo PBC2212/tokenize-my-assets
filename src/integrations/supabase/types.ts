@@ -625,7 +625,10 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      user_can_mint_tokens: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

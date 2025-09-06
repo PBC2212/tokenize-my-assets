@@ -170,6 +170,56 @@ const Dashboard = () => {
         </Card>
       </div>
 
+      {/* New User Onboarding */}
+      {assets.length === 0 && (
+        <Card className="gradient-card border-0 bg-gradient-to-r from-primary/10 to-accent/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Building2 className="w-6 h-6 text-primary" />
+              Welcome to TokenizeRWA! 🎉
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-muted-foreground">
+                Get started with tokenizing your real-world assets in 3 simple steps:
+              </p>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-background/50">
+                  <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">1</div>
+                  <div>
+                    <h4 className="font-semibold">Pledge Asset</h4>
+                    <p className="text-sm text-muted-foreground">Submit your real-world asset for verification</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-background/50">
+                  <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-bold">2</div>
+                  <div>
+                    <h4 className="font-semibold">Get Approved</h4>
+                    <p className="text-sm text-muted-foreground">Wait for asset verification and approval</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-background/50">
+                  <div className="w-8 h-8 rounded-full bg-success text-success-foreground flex items-center justify-center text-sm font-bold">3</div>
+                  <div>
+                    <h4 className="font-semibold">Mint Tokens</h4>
+                    <p className="text-sm text-muted-foreground">Create tradeable tokens for your asset</p>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-4">
+                <Button asChild size="lg" className="gradient-primary">
+                  <Link to="/assets/pledge">
+                    <Plus className="w-5 h-5 mr-2" />
+                    Pledge Your First Asset
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
         <Card className="gradient-card border-0">
