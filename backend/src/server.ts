@@ -8,6 +8,18 @@ import multer from "multer";
 
 dotenv.config();
 
+// Extend the Request interface to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        userId: string;
+        email: string;
+      };
+    }
+  }
+}
+
 const app = express();
 
 // Handle preflight requests first
@@ -86,13 +98,20 @@ const tokens = new Map();
 
 // Pre-populate with sample data for testing
 const sampleUserId = "user_1";
-users.set("test@test.com", {
-  id: sampleUserId,
-  email: "test@test.com",
-  password: "$2a$10$sample.hash", // bcrypt hash for "password123"
-  name: "Test User",
-  createdAt: new Date().toISOString()
-});
+// Create a proper bcrypt hash for "password123"
+const createTestUser = async () => {
+  const hashedPassword = await bcrypt.hash("password123", 10);
+  users.set("test@test.com", {
+    id: sampleUserId,
+    email: "test@test.com",
+    password: hashedPassword,
+    name: "Test User",
+    createdAt: new Date().toISOString()
+  });
+};
+
+// Initialize test user
+createTestUser();
 
 // Sample assets that match frontend expectations
 assets.set("asset_1", {

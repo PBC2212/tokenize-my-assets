@@ -42,7 +42,8 @@ const api = axios.create({
   },
 });
 
-// Fallback to mock data if backend is not available
+// TEMPORARILY COMMENTED OUT - Fallback to mock data if backend is not available
+/*
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -56,6 +57,7 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+*/
 
 // Add auth token to requests
 api.interceptors.request.use(
