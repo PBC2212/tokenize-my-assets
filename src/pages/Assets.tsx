@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { assetsApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { useWallet } from "@/hooks/useWallet";
+import { AssetApprovalDialog } from "@/components/AssetApprovalDialog";
 import { 
   Building2, 
   Plus, 
@@ -23,12 +24,16 @@ import {
   Clock,
   AlertCircle,
   Coins,
-  Wallet
+  Wallet,
+  Settings
 } from "lucide-react";
 import { MintTokenDialog } from "@/components/MintTokenDialog";
 
 const AssetsList = () => {
-  const { data: assets = [], isLoading } = useQuery({
+  const [selectedAsset, setSelectedAsset] = useState<any>(null);
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  
+  const { data: assets = [], isLoading, refetch } = useQuery({
     queryKey: ['my-assets'],
     queryFn: () => assetsApi.myAssets().then(res => res.data),
   });
@@ -43,6 +48,15 @@ const AssetsList = () => {
     queryKey: ['mine-assets'],
     queryFn: () => assetsApi.mine().then(res => res.data),
   });
+
+  const handleReviewAsset = (asset: any) => {
+    setSelectedAsset(asset);
+    setIsApprovalDialogOpen(true);
+  };
+
+  const handleApprovalChange = () => {
+    refetch();
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -90,12 +104,20 @@ const AssetsList = () => {
             Manage your pledged assets and tokenization status
           </p>
         </div>
-        <Button asChild className="gradient-primary">
-          <Link to="/assets/pledge">
-            <Plus className="w-4 h-4 mr-2" />
-            Pledge Asset
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link to="/admin/assets">
+              <Settings className="w-4 h-4 mr-2" />
+              Admin Panel
+            </Link>
+          </Button>
+          <Button asChild className="gradient-primary">
+            <Link to="/assets/pledge">
+              <Plus className="w-4 h-4 mr-2" />
+              Pledge Asset
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {assets.length === 0 ? (
@@ -152,11 +174,31 @@ const AssetsList = () => {
                     </Button>
                   </MintTokenDialog>
                 )}
+                
+                {asset.status === 'under_review' && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => handleReviewAsset(asset)}
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Review & Approve
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+      
+      {/* Asset Approval Dialog */}
+      <AssetApprovalDialog
+        asset={selectedAsset}
+        isOpen={isApprovalDialogOpen}
+        onClose={() => setIsApprovalDialogOpen(false)}
+        onApprovalChange={handleApprovalChange}
+      />
     </div>
   );
 };
