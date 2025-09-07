@@ -209,8 +209,10 @@ export const useWallet = () => {
       if (accounts.length === 0) {
         disconnectWallet();
       } else if (accounts[0] !== wallet.address) {
-        // Account changed, reconnect
-        connectWallet();
+        // Account changed, reconnect with delay to prevent race conditions
+        setTimeout(() => {
+          connectWallet();
+        }, 100);
       }
     };
 
@@ -225,47 +227,66 @@ export const useWallet = () => {
     window.ethereum.on('chainChanged', handleChainChanged);
 
     return () => {
-      window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
-      window.ethereum?.removeListener('chainChanged', handleChainChanged);
+      if (window.ethereum?.removeListener) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+      }
     };
   }, [wallet.address, connectWallet, disconnectWallet]);
 
   // Check if wallet should be restored on initialization
   useEffect(() => {
+    let mounted = true;
+    
     const restoreWalletState = async () => {
       // If user is authenticated and has a wallet address, try to restore connection
-      if (isAuthenticated && user?.wallet_address && window.ethereum) {
+      if (isAuthenticated && user?.wallet_address && window.ethereum && mounted) {
         try {
           const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-          const provider = new BrowserProvider(window.ethereum);
-          const network = await provider.getNetwork();
+          
+          if (!mounted) return; // Component unmounted
           
           // Check if the stored wallet address matches currently connected account
           if (accounts.length > 0 && accounts[0].toLowerCase() === user.wallet_address.toLowerCase()) {
-            setWallet({
+            const provider = new BrowserProvider(window.ethereum);
+            const network = await provider.getNetwork();
+            
+            if (!mounted) return; // Component unmounted
+            
+            setWallet(prev => ({
+              ...prev,
               address: accounts[0],
               provider,
               chainId: Number(network.chainId),
               isConnected: true,
               isConnecting: false,
-            });
+            }));
             console.log('Wallet state restored for:', accounts[0]);
           }
         } catch (error) {
           console.error('Failed to restore wallet state:', error);
+          if (mounted) {
+            setWallet(prev => ({ ...prev, isConnecting: false }));
+          }
         }
       }
     };
 
-    restoreWalletState();
-  }, [isAuthenticated, user]);
+    // Small delay to prevent race conditions
+    const timeoutId = setTimeout(restoreWalletState, 100);
+    
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [isAuthenticated, user?.wallet_address]); // Only depend on authentication state and wallet address
 
   // Load connections when user becomes authenticated
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user?.id) {
       loadWalletConnections();
     }
-  }, [loadWalletConnections, isAuthenticated, user]);
+  }, [isAuthenticated, user?.id, loadWalletConnections]);
 
   return {
     wallet,
