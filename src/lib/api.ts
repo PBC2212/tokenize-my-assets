@@ -152,7 +152,9 @@ export const kycApi = {
   },
   
   status: async () => {
-    const { data: result, error } = await supabase.functions.invoke('kyc-management');
+    const { data: result, error } = await supabase.functions.invoke('kyc-management', {
+      method: 'GET'
+    });
     
     if (error) throw error;
     return { data: result.data };
