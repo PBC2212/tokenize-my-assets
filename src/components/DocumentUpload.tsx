@@ -54,7 +54,7 @@ export const DocumentUpload = ({
   ],
   required = false
 }: DocumentUploadProps) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, walletAddress } = useAuth();
   const [documents, setDocuments] = useState<UploadedDocument[]>(existingDocuments);
   const [uploading, setUploading] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -87,9 +87,15 @@ export const DocumentUpload = ({
 
   const uploadFile = async (file: File): Promise<UploadedDocument | null> => {
     try {
-      if (!isAuthenticated || !user) {
+      if (!isAuthenticated || !user || !walletAddress) {
         throw new Error('User not authenticated');
       }
+
+      // Set wallet address in session for RLS policies
+      await supabase.rpc('set_config', {
+        setting_name: 'app.current_wallet_address',
+        setting_value: walletAddress
+      });
 
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
