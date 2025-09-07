@@ -470,7 +470,7 @@ const Dashboard = () => {
                       ${(activity.amount || 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {new Date(activity.timestamp).toLocaleDateString()}
+                      {new Date(activity.created_at || activity.timestamp).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
