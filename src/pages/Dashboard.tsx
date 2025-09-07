@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { assetsApi, marketplaceApi, activityApi, dashboardApi } from "@/lib/api";
 import { useWallet } from "@/hooks/useWallet";
 import WalletConnect from "@/components/WalletConnect";
+import NetworkStatus from "@/components/NetworkStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   TrendingUp, 
@@ -70,6 +71,7 @@ const Dashboard = () => {
               Connect your MetaMask wallet to authenticate and access all platform features including asset pledging, token minting, marketplace, and liquidity provision.
             </p>
             <WalletConnect />
+            <NetworkStatus />
           </CardContent>
         </Card>
       </div>

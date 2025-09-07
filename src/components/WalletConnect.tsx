@@ -7,7 +7,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useAuth } from '@/context/AuthContext';
 
 const WalletConnect = () => {
-  const { wallet, connections, connectWallet, disconnectWallet, switchNetwork } = useWallet();
+  const { wallet, connections, connectWallet, disconnectWallet, switchNetwork, addNetwork } = useWallet();
   const { isAuthenticated, user, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -28,8 +28,10 @@ const WalletConnect = () => {
       11155111: 'Sepolia Testnet',
       137: 'Polygon Mainnet',
       80001: 'Mumbai Testnet',
+      56: 'BSC Mainnet',
+      97: 'BSC Testnet',
     };
-    return chains[chainId] || `Chain ID: ${chainId}`;
+    return chains[chainId] || `Chain ${chainId}`;
   };
 
   const truncateAddress = (address: string) => {
@@ -92,17 +94,44 @@ const WalletConnect = () => {
               
               <div>
                 <p className="font-medium mb-2">Network</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">{getChainName(wallet.chainId!)}</span>
-                  {wallet.chainId !== 1 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => switchNetwork(1)}
-                    >
-                      Switch to Mainnet
-                    </Button>
-                  )}
+                <div className="flex items-center gap-2">
+                  <div className="text-sm">
+                    <span className="font-medium">Network:</span>{' '}
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      wallet.chainId === 1 ? 'bg-green-100 text-green-800' :
+                      wallet.chainId === 11155111 ? 'bg-blue-100 text-blue-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {getChainName(wallet.chainId!)}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Network Switch Buttons */}
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => switchNetwork(1)}
+                    disabled={wallet.chainId === 1}
+                  >
+                    Mainnet
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => switchNetwork(11155111)}
+                    disabled={wallet.chainId === 11155111}
+                  >
+                    Sepolia
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addNetwork(11155111)}
+                  >
+                    Add Sepolia
+                  </Button>
                 </div>
               </div>
 

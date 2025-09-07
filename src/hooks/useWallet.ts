@@ -136,10 +136,68 @@ export const useWallet = () => {
       });
     } catch (error: any) {
       if (error.code === 4902) {
-        toast.error('Network not added to MetaMask');
+        // Network not added, try to add it
+        await addNetwork(chainId);
       } else {
         toast.error('Failed to switch network');
       }
+    }
+  }, []);
+
+  // Add network configuration
+  const addNetwork = useCallback(async (chainId: number) => {
+    if (!window.ethereum) return;
+
+    const networks: { [key: number]: any } = {
+      11155111: { // Sepolia
+        chainId: '0xaa36a7',
+        chainName: 'Sepolia test network',
+        nativeCurrency: {
+          name: 'SepoliaETH',
+          symbol: 'ETH',
+          decimals: 18,
+        },
+        rpcUrls: ['https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'],
+        blockExplorerUrls: ['https://sepolia.etherscan.io'],
+      },
+      1: { // Ethereum Mainnet
+        chainId: '0x1',
+        chainName: 'Ethereum Mainnet',
+        nativeCurrency: {
+          name: 'Ether',
+          symbol: 'ETH',
+          decimals: 18,
+        },
+        rpcUrls: ['https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'],
+        blockExplorerUrls: ['https://etherscan.io'],
+      },
+      137: { // Polygon
+        chainId: '0x89',
+        chainName: 'Polygon Mainnet',
+        nativeCurrency: {
+          name: 'MATIC',
+          symbol: 'MATIC',
+          decimals: 18,
+        },
+        rpcUrls: ['https://polygon-rpc.com/'],
+        blockExplorerUrls: ['https://polygonscan.com/'],
+      },
+    };
+
+    const networkConfig = networks[chainId];
+    if (!networkConfig) {
+      toast.error('Network not supported');
+      return;
+    }
+
+    try {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [networkConfig],
+      });
+      toast.success(`${networkConfig.chainName} network added successfully!`);
+    } catch (error: any) {
+      toast.error('Failed to add network');
     }
   }, []);
 
@@ -185,6 +243,7 @@ export const useWallet = () => {
     connectWallet,
     disconnectWallet,
     switchNetwork,
+    addNetwork,
     loadWalletConnections,
   };
 };
