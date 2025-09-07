@@ -108,7 +108,7 @@ const Index = () => {
         <div className="container mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <div key={index} className="text-center animate-float" style={{ animationDelay: `${index * 0.2}s` }}>
+              <div key={index} className="text-center">
                 <div className="text-3xl md:text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
                   {stat.value}
                 </div>
@@ -139,7 +139,7 @@ const Index = () => {
             {features.map((feature, index) => {
               const IconComponent = feature.icon;
               return (
-                <Card key={index} className="gradient-card border-0 hover:shadow-lg transition-all duration-300 animate-float" style={{ animationDelay: `${index * 0.1}s` }}>
+                <Card key={index} className="gradient-card border-0 hover:shadow-lg hover:scale-105 transition-all duration-300">
                   <CardHeader>
                     <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
                       <IconComponent className="w-6 h-6 text-primary" />
