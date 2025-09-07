@@ -571,8 +571,9 @@ export const dashboardApi = {
       .select('estimated_value')
       .eq('status', 'approved');
 
+    // Use users table instead of profiles for public stats
     const { data: totalUsers } = await supabase
-      .from('profiles')
+      .from('users')
       .select('id');
 
     const { data: transactions } = await supabase

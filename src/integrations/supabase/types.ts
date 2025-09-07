@@ -668,6 +668,10 @@ export type Database = {
       }
     }
     Functions: {
+      get_current_wallet_user: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_current_wallet_user_id: {
         Args: Record<PropertyKey, never>
         Returns: string
