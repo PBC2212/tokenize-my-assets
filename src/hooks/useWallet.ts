@@ -230,6 +230,36 @@ export const useWallet = () => {
     };
   }, [wallet.address, connectWallet, disconnectWallet]);
 
+  // Check if wallet should be restored on initialization
+  useEffect(() => {
+    const restoreWalletState = async () => {
+      // If user is authenticated and has a wallet address, try to restore connection
+      if (isAuthenticated && user?.wallet_address && window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          const provider = new BrowserProvider(window.ethereum);
+          const network = await provider.getNetwork();
+          
+          // Check if the stored wallet address matches currently connected account
+          if (accounts.length > 0 && accounts[0].toLowerCase() === user.wallet_address.toLowerCase()) {
+            setWallet({
+              address: accounts[0],
+              provider,
+              chainId: Number(network.chainId),
+              isConnected: true,
+              isConnecting: false,
+            });
+            console.log('Wallet state restored for:', accounts[0]);
+          }
+        } catch (error) {
+          console.error('Failed to restore wallet state:', error);
+        }
+      }
+    };
+
+    restoreWalletState();
+  }, [isAuthenticated, user]);
+
   // Load connections when user becomes authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
