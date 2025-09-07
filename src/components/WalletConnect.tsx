@@ -4,15 +4,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Wallet, Loader2, ExternalLink } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
+import { useAuth } from '@/context/AuthContext';
 
 const WalletConnect = () => {
   const { wallet, connections, connectWallet, disconnectWallet, switchNetwork } = useWallet();
+  const { isAuthenticated, user, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleConnect = async () => {
     setIsLoading(true);
     await connectWallet();
     setIsLoading(false);
+  };
+
+  const handleDisconnect = async () => {
+    disconnectWallet();
+    await signOut();
   };
 
   const getChainName = (chainId: number) => {
@@ -101,7 +108,7 @@ const WalletConnect = () => {
 
               <Button
                 variant="outline"
-                onClick={disconnectWallet}
+                onClick={handleDisconnect}
                 className="w-full"
               >
                 Disconnect Wallet

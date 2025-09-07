@@ -21,7 +21,7 @@ interface WalletConnection {
 }
 
 export const useWallet = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, authenticateWallet } = useAuth();
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
     provider: null,
@@ -34,7 +34,7 @@ export const useWallet = () => {
 
   // Load existing wallet connections from database
   const loadWalletConnections = useCallback(async () => {
-    if (!user) return;
+    if (!user || !isAuthenticated) return;
     
     const { data, error } = await supabase
       .from('wallet_connections')
@@ -47,15 +47,10 @@ export const useWallet = () => {
     }
     
     setConnections(data || []);
-  }, [user]);
+  }, [user, isAuthenticated]);
 
-  // Connect to MetaMask
+  // Connect to MetaMask and authenticate
   const connectWallet = useCallback(async () => {
-    if (!user) {
-      toast.error('Please login first to connect wallet');
-      return;
-    }
-
     if (!window.ethereum) {
       toast.error('MetaMask not detected. Please install MetaMask.');
       return;
@@ -77,34 +72,24 @@ export const useWallet = () => {
       const network = await provider.getNetwork();
       const address = accounts[0];
 
-      // Generate nonce for signature verification
-      const nonce = Math.random().toString(36).substring(7);
-      const message = `Connect wallet to TokenizeRWA\nNonce: ${nonce}`;
+      // Generate nonce for signature verification and authentication
+      const nonce = Math.random().toString(36).substring(2, 15);
+      const timestamp = Date.now();
+      const message = `Welcome to RWA Tokenization Platform!\n\nPlease sign this message to authenticate your wallet:\n\nWallet: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}\n\nThis request will not trigger a blockchain transaction or cost any gas fees.`;
       
-      // Request signature
+      // Request signature for authentication
       const signer = await provider.getSigner();
       const signature = await signer.signMessage(message);
 
-      // Store wallet connection in database
-      const { error } = await supabase
-        .from('wallet_connections')
-        .upsert({
-          user_id: user.id,
-          wallet_address: address.toLowerCase(),
-          wallet_type: 'metamask',
-          chain_id: Number(network.chainId),
-          is_verified: true,
-          signature: signature,
-          nonce: nonce,
-          last_activity: new Date().toISOString(),
-        }, {
-          onConflict: 'wallet_address'
-        });
-
-      if (error) {
-        throw error;
+      // Authenticate with backend (this will create user if needed)
+      const { error: authError } = await authenticateWallet(address, signature, message, nonce);
+      
+      if (authError) {
+        console.error('Wallet authentication failed:', authError);
+        throw new Error('Wallet authentication failed');
       }
 
+      // Update wallet state
       setWallet({
         address,
         provider,
@@ -113,15 +98,19 @@ export const useWallet = () => {
         isConnecting: false,
       });
 
-      toast.success('Wallet connected successfully!');
-      loadWalletConnections();
+      toast.success('Wallet connected and authenticated successfully!');
+      
+      // Load wallet connections after a short delay to allow authentication to complete
+      setTimeout(() => {
+        loadWalletConnections();
+      }, 1000);
 
     } catch (error: any) {
       console.error('Error connecting wallet:', error);
       toast.error(error.message || 'Failed to connect wallet');
       setWallet(prev => ({ ...prev, isConnecting: false }));
     }
-  }, [user, loadWalletConnections]);
+  }, [authenticateWallet, loadWalletConnections]);
 
   // Disconnect wallet
   const disconnectWallet = useCallback(() => {
@@ -132,6 +121,7 @@ export const useWallet = () => {
       isConnected: false,
       isConnecting: false,
     });
+    setConnections([]);
     toast.success('Wallet disconnected');
   }, []);
 
@@ -182,12 +172,12 @@ export const useWallet = () => {
     };
   }, [wallet.address, connectWallet, disconnectWallet]);
 
-  // Load connections on user change
+  // Load connections when user becomes authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       loadWalletConnections();
     }
-  }, [loadWalletConnections, isAuthenticated]);
+  }, [loadWalletConnections, isAuthenticated, user]);
 
   return {
     wallet,

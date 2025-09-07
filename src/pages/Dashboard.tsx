@@ -42,8 +42,39 @@ interface MarketOverview {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { wallet } = useWallet();
+
+  // Show wallet connection prompt when not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            Welcome to TokenizeRWA!
+          </h1>
+          <p className="text-muted-foreground">
+            Connect your wallet to access the tokenization platform.
+          </p>
+        </div>
+
+        <Card className="gradient-card border-0 animate-float border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Wallet className="h-6 w-6 text-primary" />
+              Connect Your Wallet to Get Started
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Connect your MetaMask wallet to authenticate and access all platform features including asset pledging, token minting, marketplace, and liquidity provision.
+            </p>
+            <WalletConnect />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Use Supabase-based dashboard endpoints
   const { data: dashboardStatsResponse, isLoading: statsLoading } = useQuery({
@@ -55,7 +86,7 @@ const Dashboard = () => {
   const { data: userAssets, isLoading: assetsLoading } = useQuery({
     queryKey: ['user-assets'],
     queryFn: () => assetsApi.mine().then(res => res.data),
-    enabled: !!user && !!wallet.isConnected,
+    enabled: !!user,
   });
 
   const { data: portfolioBreakdownResponse, isLoading: portfolioLoading } = useQuery({
@@ -88,7 +119,7 @@ const Dashboard = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!user && !!wallet.isConnected,
+    enabled: !!user,
   });
 
   // Keep existing queries for backward compatibility
@@ -121,26 +152,8 @@ const Dashboard = () => {
         </p>
       </div>
 
-      {/* Wallet Connection Status */}
-      {!wallet.isConnected && (
-        <Card className="gradient-card border-0 animate-float border-amber-200/20 bg-amber-50/10">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-              <Wallet className="h-6 w-6 text-amber-500" />
-              Connect Your Wallet
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Connect your MetaMask wallet to access all features and track your tokenized assets.
-            </p>
-            <WalletConnect />
-          </CardContent>
-        </Card>
-      )}
-
       {/* Onboarding for new users */}
-      {(wallet.isConnected && !userAssets?.length && !assetsLoading) && (
+      {(!userAssets?.length && !assetsLoading) && (
         <Card className="gradient-card border-0 animate-float">
           <CardHeader>
             <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -176,8 +189,7 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Stats Cards - Show only when wallet is connected */}
-      {wallet.isConnected && (
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="gradient-card border-0 animate-float">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -248,7 +260,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
-      )}
 
       {/* New User Onboarding */}
       {userAssets?.length === 0 && (
@@ -368,8 +379,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-      {/* Ready to Mint Assets */}
-      {wallet.isConnected && (
+        {/* Ready to Mint Assets */}
         <Card className="gradient-card border-0">
           <CardHeader>
             <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -418,7 +428,6 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
-      )}
       </div>
 
       {/* Recent Activity - Now using paginated endpoint */}
@@ -467,7 +476,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="text-center py-8">
-              <Activity className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <Activity className="w-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No recent activity</p>
               <p className="text-sm text-muted-foreground">Start by pledging your first asset</p>
             </div>
