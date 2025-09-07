@@ -448,17 +448,23 @@ export const dashboardApi = {
     // Use calculation engine for accurate, real-time data
     const portfolioMetrics = await calculationEngine.calculatePortfolioValue(user.id);
 
-    // Get asset counts
+    // Get asset counts and IDs
     const { data: assets } = await supabase
       .from('user_assets')
-      .select('status')
+      .select('id, status')
       .eq('user_id', user.id);
 
-    // Get transaction totals
-    const { data: transactions } = await supabase
-      .from('transactions')
-      .select('total_value, type')
+    // Get transaction totals from activities table (where actual data is stored)
+    const { data: activities } = await supabase
+      .from('activities')
+      .select('amount, type')
       .eq('user_id', user.id);
+
+    // Get token data for token count
+    const { data: tokens } = await supabase
+      .from('tokens')
+      .select('id, total_supply')
+      .in('asset_id', assets?.map(a => a.id) || []);
 
     // Get liquidity positions
     const { data: positions } = await supabase
@@ -469,7 +475,19 @@ export const dashboardApi = {
     const totalAssets = assets?.length || 0;
     const activeAssets = assets?.filter(a => a.status === 'approved').length || 0;
     const pendingAssets = assets?.filter(a => a.status === 'under_review').length || 0;
-    const totalInvested = transactions?.reduce((sum, tx) => sum + (tx.total_value || 0), 0) || 0;
+    
+    // Calculate total invested from activities (pledged assets + token investments)
+    const totalInvested = activities?.filter(activity => 
+      ['asset_pledged', 'token_purchased', 'token_minted'].includes(activity.type)
+    ).reduce((sum, activity) => sum + (activity.amount || 0), 0) || 0;
+    
+    // Calculate total transactions from activities
+    const totalTransactions = activities?.length || 0;
+    
+    // Calculate total tokens minted
+    const totalTokens = tokens?.reduce((sum, token) => sum + parseFloat(token.total_supply?.toString() || '0'), 0) || 0;
+
+    // Calculate total liquidity
     const totalLiquidity = positions?.reduce((sum, pos) => sum + parseFloat(pos.amount?.toString() || '0'), 0) || 0;
 
     return {
@@ -480,8 +498,8 @@ export const dashboardApi = {
         pendingAssets,
         totalInvested,
         totalLiquidity,
-        totalTokens: 0, // Will be calculated from portfolio breakdown
-        totalTransactions: transactions?.length || 0,
+        totalTokens,
+        totalTransactions,
         change24h: portfolioMetrics.change24h,
         changeAmount: portfolioMetrics.changeAmount,
         assetBreakdown: portfolioMetrics.assetBreakdown
