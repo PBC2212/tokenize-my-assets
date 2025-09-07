@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { marketplaceApi } from "@/lib/api";
@@ -331,6 +331,9 @@ const Marketplace = () => {
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Buy {tokenSymbol} Tokens</DialogTitle>
+                        <DialogDescription>
+                          Enter the amount of tokens you want to purchase from this asset.
+                        </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div>
@@ -391,6 +394,9 @@ const Marketplace = () => {
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Sell {tokenSymbol} Tokens</DialogTitle>
+                        <DialogDescription>
+                          Create a listing to sell your tokens at your desired price.
+                        </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div>

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { liquidityApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
@@ -284,6 +284,9 @@ const Liquidity = () => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Add Liquidity to {pool.name}</DialogTitle>
+                      <DialogDescription>
+                        Add liquidity to this pool to earn trading fees from user transactions.
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
@@ -349,6 +352,9 @@ const Liquidity = () => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Remove Liquidity from {pool.name}</DialogTitle>
+                      <DialogDescription>
+                        Remove your liquidity from this pool to withdraw your funds.
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
