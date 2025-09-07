@@ -4,6 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Upload, 
   FileText, 
@@ -53,6 +54,7 @@ export const DocumentUpload = ({
   ],
   required = false
 }: DocumentUploadProps) => {
+  const { user, isAuthenticated } = useAuth();
   const [documents, setDocuments] = useState<UploadedDocument[]>(existingDocuments);
   const [uploading, setUploading] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -85,8 +87,7 @@ export const DocumentUpload = ({
 
   const uploadFile = async (file: File): Promise<UploadedDocument | null> => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      if (!isAuthenticated || !user) {
         throw new Error('User not authenticated');
       }
 
