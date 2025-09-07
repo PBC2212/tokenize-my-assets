@@ -378,7 +378,7 @@ export const activityApi = {
       .from('activities')
       .select('*')
       .eq('user_id', user.id)
-      .order('timestamp', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(50);
       
     if (error) throw error;
