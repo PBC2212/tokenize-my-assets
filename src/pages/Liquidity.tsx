@@ -153,6 +153,11 @@ const Liquidity = () => {
     ? liquidityMetrics.reduce((sum: number, metric: any) => sum + (metric.apr || 0), 0) / liquidityMetrics.length 
     : 0;
 
+  // Calculate pool type breakdown
+  const assetPools = pools.filter((p: any) => p.pool_type === 'individual').length;
+  const generalPools = pools.filter((p: any) => p.pool_type === 'general').length;
+  const basketPools = pools.filter((p: any) => p.pool_type === 'basket').length;
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -249,6 +254,16 @@ const Liquidity = () => {
         </Card>
       </div>
 
+      {/* Pool Type Filter */}
+      <div className="flex space-x-2 mb-4">
+        <Badge variant="outline" className="text-xs">
+          Individual Asset Pools: {pools.filter((p: any) => p.pool_type === 'individual').length}
+        </Badge>
+        <Badge variant="outline" className="text-xs">
+          General Pools: {pools.filter((p: any) => p.pool_type === 'general').length}
+        </Badge>
+      </div>
+
       {/* Pools Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {pools.map((pool: any, index: number) => {
@@ -259,6 +274,21 @@ const Liquidity = () => {
           const displayVolume = poolMetrics.volume24h || pool.volume_24h || 0;
           const userLiquidity = poolMetrics.userLiquidity || pool.my_liquidity || 0;
           const userFees = poolMetrics.userFees24h || pool.fees_24h || 0;
+          
+          // Determine pool type badge
+          const getPoolTypeInfo = (poolType: string) => {
+            switch (poolType) {
+              case 'individual':
+                return { label: 'Asset Pool', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+              case 'basket':
+                return { label: 'Basket Pool', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+              default:
+                return { label: 'General Pool', color: 'bg-gray-100 text-gray-800 border-gray-200' };
+            }
+          };
+
+          const poolTypeInfo = getPoolTypeInfo(pool.pool_type || 'general');
+
           return (
           <Card key={pool.id} className="gradient-card border-0 hover:shadow-lg transition-all duration-300">
             <CardHeader>
@@ -270,11 +300,17 @@ const Liquidity = () => {
                   <div>
                     <CardTitle className="text-lg">{pool.name}</CardTitle>
                     <p className="text-sm text-muted-foreground">{pool.token_a} / {pool.token_b}</p>
+                    {pool.asset_name && (
+                      <p className="text-xs text-accent">Backed by: {pool.asset_name}</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col items-end space-y-1">
                   <Badge className="bg-success/20 text-success border-success/20">
                     {displayAPR.toFixed(2)}% APR
+                  </Badge>
+                  <Badge className={poolTypeInfo.color + " text-xs"}>
+                    {poolTypeInfo.label}
                   </Badge>
                   {poolMetrics.apr && (
                     <span className="text-xs text-accent">Live</span>
