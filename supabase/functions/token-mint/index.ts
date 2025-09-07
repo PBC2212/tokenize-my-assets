@@ -46,17 +46,42 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
+    // Verify authentication with custom wallet JWT
     const authorization = req.headers.get('Authorization')
     if (!authorization) {
       throw new Error('No authorization header')
     }
 
     const token = authorization.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
     
-    if (authError || !user) {
-      throw new Error('Invalid authentication token')
+    // Verify custom wallet JWT token
+    let walletAddress: string;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      walletAddress = payload.walletAddress;
+      
+      if (!walletAddress) {
+        throw new Error('No wallet address in token');
+      }
+    } catch (error) {
+      throw new Error('Invalid token format')
     }
+
+    // Set the wallet address in session for RLS policies
+    await supabaseClient.rpc('set_current_wallet_address', { wallet_addr: walletAddress });
+
+    // Get the user by wallet address
+    const { data: userData, error: userError } = await supabaseClient
+      .from('users')
+      .select('id')
+      .eq('wallet_address', walletAddress)
+      .single();
+
+    if (userError || !userData) {
+      throw new Error('User not found')
+    }
+
+    const user = userData;
 
     const body = await req.text()
     if (!body.trim()) {

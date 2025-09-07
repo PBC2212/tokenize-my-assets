@@ -47,6 +47,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(parsedUser);
         setSessionToken(storedToken);
         setWalletAddress(storedAddress);
+        
+        // Set wallet address in Supabase session for RLS policies (best effort)
+        supabase.rpc('set_current_wallet_address', { wallet_addr: storedAddress });
       } catch (error) {
         console.error('Failed to parse stored user data:', error);
         // Clear invalid data
@@ -83,6 +86,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('wallet_session_token', data.sessionToken);
         localStorage.setItem('wallet_address', walletAddress);
         
+        // Set wallet address in Supabase session for RLS policies
+        await supabase.rpc('set_current_wallet_address', { wallet_addr: walletAddress });
+        
         // Update state
         setUser(walletUser);
         setSessionToken(data.sessionToken);
@@ -99,6 +105,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    // Clear wallet address from Supabase session
+    try {
+      await supabase.rpc('set_current_wallet_address', { wallet_addr: '' });
+    } catch (error) {
+      console.error('Error clearing wallet session:', error);
+    }
+    
     // Clear local storage
     localStorage.removeItem('wallet_user');
     localStorage.removeItem('wallet_session_token');

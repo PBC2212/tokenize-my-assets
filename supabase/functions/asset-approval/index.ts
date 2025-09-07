@@ -25,7 +25,7 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Get user from auth header
+    // Get user from auth header - using custom wallet JWT authentication
     const authHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!authHeader) {
       console.error('No authorization header');
@@ -35,14 +35,42 @@ serve(async (req) => {
       );
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader);
-    if (authError || !user) {
-      console.error('Authentication failed:', authError);
+    // Verify custom wallet JWT token
+    let walletAddress: string;
+    try {
+      const payload = JSON.parse(atob(authHeader.split('.')[1]));
+      walletAddress = payload.walletAddress;
+      
+      if (!walletAddress) {
+        throw new Error('No wallet address in token');
+      }
+    } catch (error) {
+      console.error('Invalid token format:', error);
       return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }),
+        JSON.stringify({ error: 'Invalid authentication token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Set the wallet address in session for RLS policies
+    await supabase.rpc('set_current_wallet_address', { wallet_addr: walletAddress });
+
+    // Get the user by wallet address
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('wallet_address', walletAddress)
+      .single();
+
+    if (userError || !userData) {
+      console.error('User not found:', userError);
+      return new Response(
+        JSON.stringify({ error: 'User not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const user = userData;
 
     // Parse request body
     const body: AssetApprovalRequest = await req.json();

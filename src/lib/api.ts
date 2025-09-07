@@ -415,30 +415,20 @@ export const walletApi = {
     return { data: data.transactions || [] };
   },
 
-  recordTransaction: async (transactionData: {
-    transactionHash: string;
-    walletAddress: string;
-    fromAddress: string;
-    toAddress: string;
-    valueWei: string;
-    valueEth?: number;
-    gasUsed?: number;
-    gasPrice?: string;
-    blockNumber?: number;
-    blockHash?: string;
-    chainId?: number;
-    transactionType?: string;
-    tokenContractAddress?: string;
-    tokenSymbol?: string;
-    tokenDecimals?: number;
-  }): Promise<{ data: any }> => {
-    const { data, error } = await supabase.functions.invoke('wallet-transactions', {
-      body: transactionData,
-    });
+  recordTransaction: async (transactionDetails: any) => {
+    // Ensure wallet address is set in session before recording transaction
+    const walletAddress = localStorage.getItem('walletAddress');
+    if (walletAddress) {
+      await supabase.rpc('set_current_wallet_address', { wallet_addr: walletAddress });
+    }
+    
+    const { data, error } = await supabase
+      .from('wallet_transactions')
+      .insert([transactionDetails]);
     
     if (error) throw error;
-    return { data };
-  },
+    return data;
+  }
 };
 
 // Dashboard API
