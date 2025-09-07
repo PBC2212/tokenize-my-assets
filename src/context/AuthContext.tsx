@@ -1,14 +1,22 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+interface WalletUser {
+  id: string;
+  wallet_address: string;
+  kyc_status: 'pending' | 'verified' | 'rejected';
+  created_at: string;
+  updated_at: string;
+}
+
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
+  user: WalletUser | null;
+  walletAddress: string | null;
+  sessionToken: string | null;
+  authenticateWallet: (walletAddress: string, signature: string, message: string, nonce: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,65 +30,94 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<WalletUser | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    // Check for existing wallet session
+    const storedUser = localStorage.getItem('wallet_user');
+    const storedToken = localStorage.getItem('wallet_session_token');
+    const storedAddress = localStorage.getItem('wallet_address');
+    
+    if (storedUser && storedToken && storedAddress) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setSessionToken(storedToken);
+        setWalletAddress(storedAddress);
+      } catch (error) {
+        console.error('Failed to parse stored user data:', error);
+        // Clear invalid data
+        localStorage.removeItem('wallet_user');
+        localStorage.removeItem('wallet_session_token');
+        localStorage.removeItem('wallet_address');
       }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    }
+    
+    setLoading(false);
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
-  };
-
-  const signUp = async (email: string, password: string, name: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          name: name,
+  const authenticateWallet = async (walletAddress: string, signature: string, message: string, nonce: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('wallet-auth', {
+        body: {
+          walletAddress,
+          signature,
+          message,
+          nonce
         }
+      });
+
+      if (error) {
+        console.error('Wallet authentication error:', error);
+        return { error };
       }
-    });
-    return { error };
+
+      if (data?.success && data?.user && data?.sessionToken) {
+        const walletUser: WalletUser = data.user;
+        
+        // Store session data
+        localStorage.setItem('wallet_user', JSON.stringify(walletUser));
+        localStorage.setItem('wallet_session_token', data.sessionToken);
+        localStorage.setItem('wallet_address', walletAddress);
+        
+        // Update state
+        setUser(walletUser);
+        setSessionToken(data.sessionToken);
+        setWalletAddress(walletAddress);
+        
+        return { error: null };
+      }
+
+      return { error: { message: 'Authentication failed' } };
+    } catch (error) {
+      console.error('Wallet authentication error:', error);
+      return { error };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Clear local storage
+    localStorage.removeItem('wallet_user');
+    localStorage.removeItem('wallet_session_token');
+    localStorage.removeItem('wallet_address');
+    
+    // Clear state
+    setUser(null);
+    setSessionToken(null);
+    setWalletAddress(null);
   };
 
   const value = {
     user,
-    session,
-    signIn,
-    signUp,
+    walletAddress,
+    sessionToken,
+    authenticateWallet,
     signOut,
     loading,
+    isAuthenticated: !!user && !!sessionToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -100,13 +100,13 @@ const Navbar = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="secondary" size="sm" className="flex items-center space-x-2">
                   <User className="w-4 h-4" />
-                  <span className="hidden sm:block">{user.user_metadata?.name || user.email}</span>
+                  <span className="hidden sm:block">{user.wallet_address.slice(0, 6)}...{user.wallet_address.slice(-4)}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5 text-sm">
-                  <p className="font-medium">{user.user_metadata?.name || user.email}</p>
-                  <p className="text-muted-foreground">{user.email}</p>
+                  <p className="font-medium">Wallet User</p>
+                  <p className="text-muted-foreground">{user.wallet_address}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">

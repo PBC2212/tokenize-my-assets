@@ -21,7 +21,7 @@ const queryClient = new QueryClient();
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   
   if (loading) {
     return (
@@ -31,8 +31,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  if (!user) {
-    return <Navigate to="/auth" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
   }
   
   return (
@@ -45,9 +45,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Public Route Component (redirects to dashboard if logged in)
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
-  if (user) {
+  if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
   
@@ -56,24 +56,23 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AppRoutes = () => {
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<Index />} />
-      <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
-      
-      {/* Protected Routes */}
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/assets/*" element={<ProtectedRoute><Assets /></ProtectedRoute>} />
-      <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
-      <Route path="/liquidity" element={<ProtectedRoute><Liquidity /></ProtectedRoute>} />
-      <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
-      <Route path="/kyc" element={<ProtectedRoute><KYC /></ProtectedRoute>} />
-      <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
-      <Route path="/admin/assets" element={<ProtectedRoute><AdminAssets /></ProtectedRoute>} />
-      
-      {/* Catch-all route */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<PublicRoute><Index /></PublicRoute>} />
+          
+          {/* Protected Routes */}
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/assets/*" element={<ProtectedRoute><Assets /></ProtectedRoute>} />
+          <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
+          <Route path="/liquidity" element={<ProtectedRoute><Liquidity /></ProtectedRoute>} />
+          <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
+          <Route path="/kyc" element={<ProtectedRoute><KYC /></ProtectedRoute>} />
+          <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
+          <Route path="/admin/assets" element={<ProtectedRoute><AdminAssets /></ProtectedRoute>} />
+          
+          {/* Catch-all route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
   );
 };
 

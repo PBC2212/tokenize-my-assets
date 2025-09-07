@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Building2, Gem, Palette, Shield, Zap, Globe } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowRight, Building2, Gem, Palette, Shield, Zap, Globe, Wallet } from "lucide-react";
+import WalletConnect from "@/components/WalletConnect";
 
 const Index = () => {
   const features = [
@@ -59,12 +59,7 @@ const Index = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
-              <Link to="/auth">Login</Link>
-            </Button>
-            <Button asChild className="gradient-primary">
-              <Link to="/auth">Get Started</Link>
-            </Button>
+            <WalletConnect />
           </div>
         </div>
       </nav>
@@ -76,7 +71,7 @@ const Index = () => {
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="inline-flex items-center space-x-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 text-sm">
               <Zap className="w-4 h-4 text-primary" />
-              <span>Powered by Fireblocks Enterprise Security</span>
+              <span>Powered by Wallet-Only Authentication</span>
             </div>
             
             <h1 className="text-5xl md:text-7xl font-bold leading-tight">
@@ -94,15 +89,14 @@ const Index = () => {
               instant trading, and global accessibility with enterprise-grade security.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" asChild className="gradient-primary text-lg px-8 py-6 glow-primary">
-                <Link to="/auth">
-                  Start Tokenizing
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6">
-                Explore Marketplace
+            <div className="flex flex-col items-center gap-6">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Wallet className="h-4 w-4" />
+                Connect your wallet to get started - no email or password required
+              </div>
+              <WalletConnect />
+              <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                Learn More
               </Button>
             </div>
           </div>
@@ -178,12 +172,7 @@ const Index = () => {
                 from the future of asset ownership and trading.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" asChild className="gradient-primary">
-                  <Link to="/auth">
-                    Create Account
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Link>
-                </Button>
+                <WalletConnect />
                 <Button size="lg" variant="outline">
                   Schedule Demo
                 </Button>
@@ -206,7 +195,7 @@ const Index = () => {
               </span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © 2024 TokenizeRWA. Powered by Fireblocks. All rights reserved.
+              © 2024 TokenizeRWA. Powered by Web3. All rights reserved.
             </div>
           </div>
         </div>

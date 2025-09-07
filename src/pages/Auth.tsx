@@ -1,174 +1,84 @@
-import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { toast } from "@/hooks/use-toast";
-import { Building2, Loader2 } from "lucide-react";
+import WalletConnect from "@/components/WalletConnect";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Wallet, Shield, Zap } from "lucide-react";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { user, signIn, signUp } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Redirect if already authenticated
-  useEffect(() => {
-    if (user) {
-      navigate("/dashboard");
-    }
-  }, [user, navigate]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (isLogin) {
-        const { error } = await signIn(email, password);
-        if (error) {
-          toast({
-            variant: "destructive",
-            title: "Login Failed",
-            description: error.message,
-          });
-        } else {
-          toast({
-            title: "Welcome back!",
-            description: "You have been successfully logged in.",
-          });
-          navigate("/dashboard");
-        }
-      } else {
-        const { error } = await signUp(email, password, name);
-        if (error) {
-          toast({
-            variant: "destructive", 
-            title: "Signup Failed",
-            description: error.message,
-          });
-        } else {
-          toast({
-            title: "Account Created!",
-            description: "Please check your email to verify your account.",
-          });
-          setIsLogin(true);
-        }
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <Card className="w-full max-w-md gradient-card border-0 shadow-2xl">
-        <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-              <Building2 className="w-6 h-6 text-white" />
-            </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/50 p-4">
+      <div className="w-full max-w-md space-y-8">
+        {/* Logo */}
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center text-white mx-auto mb-4">
+            <Wallet className="w-8 h-8" />
           </div>
-          <div>
-            <CardTitle className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              IME Capital
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            TokenizeRWA
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Connect your wallet to access the platform
+          </p>
+        </div>
+
+        {/* Authentication Card */}
+        <Card className="gradient-card border-0">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">
+              Wallet Authentication
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {isLogin ? "Welcome back" : "Create your account"}
-            </p>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your full name"
-                  required={!isLogin}
-                  className="bg-muted/50 border-border/50"
-                />
+            <CardDescription className="text-center">
+              Connect your MetaMask wallet to get started. No email or password required.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <Shield className="w-5 h-5 text-primary" />
+                <div>
+                  <p className="font-medium text-sm">Secure Authentication</p>
+                  <p className="text-xs text-muted-foreground">Your wallet signature is your login</p>
+                </div>
               </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-                className="bg-muted/50 border-border/50"
-              />
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <Zap className="w-5 h-5 text-primary" />
+                <div>
+                  <p className="font-medium text-sm">Instant Access</p>
+                  <p className="text-xs text-muted-foreground">Connect once and stay logged in</p>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                minLength={6}
-                className="bg-muted/50 border-border/50"
-              />
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full gradient-primary"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isLogin ? "Signing in..." : "Creating account..."}
-                </>
-              ) : (
-                isLogin ? "Sign In" : "Create Account"
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="ml-2 font-medium text-primary hover:underline"
-              >
-                {isLogin ? "Sign up" : "Sign in"}
-              </button>
+            
+            <WalletConnect />
+            
+            <p className="text-xs text-muted-foreground text-center">
+              By connecting your wallet, you agree to our Terms of Service and Privacy Policy.
             </p>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="mt-4 text-center">
-            <Link 
-              to="/" 
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+        {/* Additional Info */}
+        <div className="text-center space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Don't have MetaMask?{" "}
+            <a 
+              href="https://metamask.io/download/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
             >
-              ← Back to home
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+              Install it here
+            </a>
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

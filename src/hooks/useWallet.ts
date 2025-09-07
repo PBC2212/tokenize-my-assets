@@ -21,7 +21,7 @@ interface WalletConnection {
 }
 
 export const useWallet = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
     provider: null,
@@ -184,8 +184,10 @@ export const useWallet = () => {
 
   // Load connections on user change
   useEffect(() => {
-    loadWalletConnections();
-  }, [loadWalletConnections]);
+    if (isAuthenticated) {
+      loadWalletConnections();
+    }
+  }, [loadWalletConnections, isAuthenticated]);
 
   return {
     wallet,

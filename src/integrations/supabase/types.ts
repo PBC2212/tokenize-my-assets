@@ -497,6 +497,30 @@ export type Database = {
         }
         Relationships: []
       }
+      users: {
+        Row: {
+          created_at: string
+          id: string
+          kyc_status: Database["public"]["Enums"]["kyc_status_enum"]
+          updated_at: string
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status_enum"]
+          updated_at?: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status_enum"]
+          updated_at?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
       wallet_connections: {
         Row: {
           chain_id: number
@@ -625,13 +649,23 @@ export type Database = {
       }
     }
     Functions: {
+      get_or_create_user_by_wallet: {
+        Args: { _wallet_address: string }
+        Returns: {
+          created_at: string
+          id: string
+          kyc_status: Database["public"]["Enums"]["kyc_status_enum"]
+          updated_at: string
+          wallet_address: string
+        }[]
+      }
       user_can_mint_tokens: {
         Args: { _user_id: string }
         Returns: boolean
       }
     }
     Enums: {
-      [_ in never]: never
+      kyc_status_enum: "pending" | "verified" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -758,6 +792,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      kyc_status_enum: ["pending", "verified", "rejected"],
+    },
   },
 } as const
