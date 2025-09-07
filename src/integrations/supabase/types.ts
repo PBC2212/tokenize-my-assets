@@ -155,12 +155,16 @@ export type Database = {
       liquidity_pools: {
         Row: {
           apr: number | null
+          asset_name: string | null
+          asset_type: string | null
           contract_address: string | null
           created_at: string
           fees_24h: number | null
           id: string
           is_active: boolean | null
           name: string
+          pool_type: string
+          source_asset_id: string | null
           token_a: string
           token_a_id: string | null
           token_b: string
@@ -171,12 +175,16 @@ export type Database = {
         }
         Insert: {
           apr?: number | null
+          asset_name?: string | null
+          asset_type?: string | null
           contract_address?: string | null
           created_at?: string
           fees_24h?: number | null
           id?: string
           is_active?: boolean | null
           name: string
+          pool_type?: string
+          source_asset_id?: string | null
           token_a: string
           token_a_id?: string | null
           token_b: string
@@ -187,12 +195,16 @@ export type Database = {
         }
         Update: {
           apr?: number | null
+          asset_name?: string | null
+          asset_type?: string | null
           contract_address?: string | null
           created_at?: string
           fees_24h?: number | null
           id?: string
           is_active?: boolean | null
           name?: string
+          pool_type?: string
+          source_asset_id?: string | null
           token_a?: string
           token_a_id?: string | null
           token_b?: string
@@ -202,6 +214,13 @@ export type Database = {
           volume_24h?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "liquidity_pools_source_asset_id_fkey"
+            columns: ["source_asset_id"]
+            isOneToOne: false
+            referencedRelation: "user_assets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "liquidity_pools_token_a_id_fkey"
             columns: ["token_a_id"]
