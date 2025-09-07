@@ -256,7 +256,7 @@ const Marketplace = () => {
           
           const IconComponent = getAssetIcon(assetType);
           return (
-            <Card key={listing.id} className="gradient-card border-0 hover:shadow-lg transition-all duration-300 animate-float">
+            <Card key={listing.id} className="gradient-card border-0 hover:shadow-lg transition-all duration-300">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">

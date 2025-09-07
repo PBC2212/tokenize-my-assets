@@ -170,7 +170,7 @@ const Liquidity = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="gradient-card border-0 animate-float">
+        <Card className="gradient-card border-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               My Total Liquidity
@@ -188,7 +188,7 @@ const Liquidity = () => {
           </CardContent>
         </Card>
 
-        <Card className="gradient-card border-0 animate-float" style={{ animationDelay: '0.2s' }}>
+        <Card className="gradient-card border-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               24h Earnings
@@ -205,7 +205,7 @@ const Liquidity = () => {
           </CardContent>
         </Card>
 
-        <Card className="gradient-card border-0 animate-float" style={{ animationDelay: '0.4s' }}>
+        <Card className="gradient-card border-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Average APR
@@ -228,7 +228,7 @@ const Liquidity = () => {
       {/* Pools Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {pools.map((pool: any, index: number) => (
-          <Card key={pool.id} className="gradient-card border-0 hover:shadow-lg transition-all duration-300 animate-float" style={{ animationDelay: `${index * 0.1}s` }}>
+          <Card key={pool.id} className="gradient-card border-0 hover:shadow-lg transition-all duration-300">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
