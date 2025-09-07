@@ -12,6 +12,7 @@ import { assetsApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { useWallet } from "@/hooks/useWallet";
 import { AssetApprovalDialog } from "@/components/AssetApprovalDialog";
+import { DocumentUpload, UploadedDocument } from "@/components/DocumentUpload";
 import { 
   Building2, 
   Plus, 
@@ -25,7 +26,8 @@ import {
   AlertCircle,
   Coins,
   Wallet,
-  Settings
+  Settings,
+  Shield
 } from "lucide-react";
 import { MintTokenDialog } from "@/components/MintTokenDialog";
 
@@ -166,6 +168,16 @@ const AssetsList = () => {
                   </span>
                 </div>
 
+                {/* Document Status */}
+                {asset.documents && asset.documents.length > 0 && (
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <FileText className="w-4 h-4" />
+                    <span>
+                      {asset.documents.length} compliance document{asset.documents.length !== 1 ? 's' : ''} uploaded
+                    </span>
+                  </div>
+                )}
+
                 {asset.status === 'approved' && (
                   <MintTokenDialog asset={asset}>
                     <Button size="sm" className="w-full gradient-primary">
@@ -212,7 +224,7 @@ const PledgeAsset = () => {
     estimatedValue: "",
     description: "",
   });
-  const [documents, setDocuments] = useState<File[]>([]);
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
 
   const pledgeMutation = useMutation({
     mutationFn: (data: any) => {
@@ -227,7 +239,7 @@ const PledgeAsset = () => {
     onSuccess: () => {
       toast({
         title: "Asset Pledged Successfully",
-        description: "Your asset has been submitted for review and recorded on the blockchain.",
+        description: "Your asset has been submitted for review with all supporting documents.",
       });
       queryClient.invalidateQueries({ queryKey: ['my-assets'] });
       navigate('/assets');
@@ -243,11 +255,34 @@ const PledgeAsset = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!wallet.isConnected) {
+      toast({
+        variant: "destructive",
+        title: "Wallet Required",
+        description: "Please connect your wallet to pledge an asset.",
+      });
+      return;
+    }
+
+    if (documents.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Documents Required",
+        description: "Please upload at least one supporting document for compliance verification.",
+      });
+      return;
+    }
     
     const data = {
       ...formData,
       estimatedValue: parseFloat(formData.estimatedValue),
-      documents: documents.map(f => f.name)
+      documents: documents.map(doc => ({
+        name: doc.name,
+        url: doc.url,
+        type: doc.type,
+        size: doc.size
+      }))
     };
     
     pledgeMutation.mutate(data);
@@ -268,18 +303,24 @@ const PledgeAsset = () => {
             Pledge New Asset
           </h1>
           <p className="text-muted-foreground">
-            Submit your real-world asset for tokenization review
+            Submit your real-world asset for tokenization with compliance documentation
           </p>
         </div>
 
         <Card className="gradient-card border-0">
           <CardHeader>
-            <CardTitle>Asset Details</CardTitle>
+            <CardTitle className="flex items-center space-x-2">
+              <Shield className="w-5 h-5 text-primary" />
+              <span>Asset Details & Compliance Documents</span>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              All information and documents are required for KYC and regulatory compliance
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="assetType">Asset Type</Label>
+                <Label htmlFor="assetType">Asset Type *</Label>
                 <Select 
                   value={formData.assetType} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, assetType: value }))}
@@ -299,7 +340,7 @@ const PledgeAsset = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="estimatedValue">Estimated Value (USD)</Label>
+                <Label htmlFor="estimatedValue">Estimated Value (USD) *</Label>
                 <Input
                   id="estimatedValue"
                   type="number"
@@ -312,43 +353,50 @@ const PledgeAsset = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Asset Description</Label>
+                <Label htmlFor="description">Asset Description *</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Provide detailed information about your asset..."
+                  placeholder="Provide detailed information about your asset including location, condition, specifications, etc."
                   rows={4}
                   required
                   className="bg-muted/50 border-border/50"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Supporting Documents</Label>
-                <div className="border-2 border-dashed border-border/50 rounded-lg p-6 text-center">
-                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Upload ownership documents, appraisals, certificates
-                  </p>
-                  <Button type="button" variant="outline" size="sm">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Choose Files
-                  </Button>
-                </div>
-                {documents.length > 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    {documents.length} file(s) selected
-                  </div>
-                )}
+              <div className="space-y-4">
+                <DocumentUpload
+                  bucketName="asset-documents"
+                  onDocumentsChange={setDocuments}
+                  existingDocuments={documents}
+                  maxFiles={10}
+                  maxSizeMB={10}
+                  required={true}
+                />
+              </div>
+
+              <div className="bg-accent/10 border border-accent/20 rounded-lg p-4">
+                <h4 className="font-semibold text-accent mb-2">Compliance Notice</h4>
+                <p className="text-sm text-muted-foreground">
+                  By submitting this asset, you confirm that you are the legal owner and have the right to tokenize this asset. 
+                  All documents will be reviewed for compliance with applicable regulations.
+                </p>
               </div>
 
               <Button 
                 type="submit" 
                 className="w-full gradient-primary" 
-                disabled={pledgeMutation.isPending}
+                disabled={pledgeMutation.isPending || !wallet.isConnected || documents.length === 0}
               >
-                {pledgeMutation.isPending ? "Submitting..." : "Submit for Review"}
+                {pledgeMutation.isPending 
+                  ? "Submitting for Review..." 
+                  : !wallet.isConnected 
+                    ? "Connect Wallet to Submit"
+                    : documents.length === 0
+                      ? "Upload Documents to Continue"
+                      : "Submit for Compliance Review"
+                }
               </Button>
             </form>
           </CardContent>

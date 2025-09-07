@@ -161,7 +161,7 @@ export const kycApi = {
 
 // Enhanced Assets API
 export const assetsApi = {
-  pledge: async (data: { assetType: string; description: string; estimatedValue: number; documents?: string[]; walletAddress?: string }) => {
+  pledge: async (data: { assetType: string; description: string; estimatedValue: number; documents?: Array<{name: string; url: string; type: string; size: number}>; walletAddress?: string }) => {
     const { data: result, error } = await supabase.functions.invoke('asset-pledge', {
       body: data
     });
