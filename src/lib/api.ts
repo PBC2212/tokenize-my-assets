@@ -480,7 +480,7 @@ export const dashboardApi = {
     
     // Calculate total invested from activities (only actual investments - pledged assets and token purchases)
     const totalInvested = activities?.filter(activity => 
-      ['asset_pledged', 'token_purchased'].includes(activity.type)
+      ['asset_pledged', 'token_purchase'].includes(activity.type)
     ).reduce((sum, activity) => sum + (activity.amount || 0), 0) || 0;
     
     // Calculate total activity value (all activities)

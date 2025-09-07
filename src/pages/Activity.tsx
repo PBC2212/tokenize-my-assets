@@ -28,16 +28,24 @@ const Activity = () => {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case "Asset Pledged":
+      case "asset_pledged":
         return Building2;
-      case "Token Purchase":
-      case "Token Sale":
+      case "token_purchase":
+      case "token_listing":
+      case "marketplace_buy":
+      case "marketplace_sell":
         return ShoppingCart;
-      case "Liquidity Added":
-      case "Liquidity Removed":
+      case "liquidity_added":
+      case "liquidity_removed":
         return Droplets;
-      case "Token Minted":
+      case "token_minted":
         return Coins;
+      case "asset_approved":
+      case "asset_rejected":
+        return TrendingUp;
+      case "kyc_submitted":
+      case "kyc_approved":
+        return ActivityIcon;
       default:
         return ActivityIcon;
     }
@@ -45,16 +53,23 @@ const Activity = () => {
 
   const getActivityColor = (type: string) => {
     switch (type) {
-      case "Asset Pledged":
+      case "asset_pledged":
         return "text-primary";
-      case "Token Purchase":
-      case "Liquidity Added":
+      case "token_purchase":
+      case "marketplace_buy":
+      case "liquidity_added":
         return "text-success";
-      case "Token Sale":
-      case "Liquidity Removed":
+      case "token_listing":
+      case "marketplace_sell":
+      case "liquidity_removed":
         return "text-warning";
-      case "Token Minted":
+      case "token_minted":
         return "text-accent";
+      case "asset_approved":
+      case "kyc_approved":
+        return "text-success";
+      case "asset_rejected":
+        return "text-destructive";
       default:
         return "text-muted-foreground";
     }
@@ -129,7 +144,7 @@ const Activity = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="gradient-card border-0 animate-float">
+        <Card className="gradient-card border-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Transaction Value
@@ -146,7 +161,7 @@ const Activity = () => {
           </CardContent>
         </Card>
 
-        <Card className="gradient-card border-0 animate-float" style={{ animationDelay: '0.2s' }}>
+        <Card className="gradient-card border-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Completed
@@ -163,7 +178,7 @@ const Activity = () => {
           </CardContent>
         </Card>
 
-        <Card className="gradient-card border-0 animate-float" style={{ animationDelay: '0.4s' }}>
+        <Card className="gradient-card border-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Pending
@@ -198,12 +213,16 @@ const Activity = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Asset Pledged">Asset Pledged</SelectItem>
-                <SelectItem value="Token Purchase">Token Purchase</SelectItem>
-                <SelectItem value="Token Sale">Token Sale</SelectItem>
-                <SelectItem value="Liquidity Added">Liquidity Added</SelectItem>
-                <SelectItem value="Liquidity Removed">Liquidity Removed</SelectItem>
-                <SelectItem value="Token Minted">Token Minted</SelectItem>
+                <SelectItem value="asset_pledged">Asset Pledged</SelectItem>
+                <SelectItem value="token_purchase">Token Purchase</SelectItem>
+                <SelectItem value="token_listing">Token Listing</SelectItem>
+                <SelectItem value="marketplace_buy">Marketplace Buy</SelectItem>
+                <SelectItem value="marketplace_sell">Marketplace Sell</SelectItem>
+                <SelectItem value="liquidity_added">Liquidity Added</SelectItem>
+                <SelectItem value="liquidity_removed">Liquidity Removed</SelectItem>
+                <SelectItem value="token_minted">Token Minted</SelectItem>
+                <SelectItem value="asset_approved">Asset Approved</SelectItem>
+                <SelectItem value="kyc_submitted">KYC Submitted</SelectItem>
               </SelectContent>
             </Select>
 
@@ -250,7 +269,7 @@ const Activity = () => {
                 {dayActivities.map((activity: any, index: number) => {
                   const IconComponent = getActivityIcon(activity.type);
                   return (
-                    <Card key={activity.id} className="gradient-card border-0 animate-float" style={{ animationDelay: `${index * 0.1}s` }}>
+                    <Card key={activity.id} className="gradient-card border-0">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
@@ -259,7 +278,11 @@ const Activity = () => {
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center space-x-2">
-                                <h4 className="font-semibold">{activity.type}</h4>
+                                <h4 className="font-semibold">
+                                  {activity.type.split('_').map((word: string) => 
+                                    word.charAt(0).toUpperCase() + word.slice(1)
+                                  ).join(' ')}
+                                </h4>
                                 {getStatusBadge(activity.status)}
                               </div>
                               <p className="text-sm text-muted-foreground mt-1">
