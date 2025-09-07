@@ -99,7 +99,7 @@ const Activity = () => {
 
   // Group activities by date
   const groupedActivities = filteredActivities.reduce((groups: any, activity: any) => {
-    const date = new Date(activity.timestamp).toLocaleDateString();
+    const date = new Date(activity.created_at || activity.timestamp).toLocaleDateString();
     if (!groups[date]) {
       groups[date] = [];
     }
@@ -298,7 +298,7 @@ const Activity = () => {
                               </div>
                             )}
                             <div className="text-xs text-muted-foreground">
-                              {new Date(activity.timestamp).toLocaleTimeString()}
+                              {new Date(activity.created_at || activity.timestamp).toLocaleTimeString()}
                             </div>
                           </div>
                         </div>
