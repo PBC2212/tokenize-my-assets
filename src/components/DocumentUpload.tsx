@@ -92,9 +92,8 @@ export const DocumentUpload = ({
       }
 
       // Set wallet address in session for RLS policies
-      await supabase.rpc('set_config', {
-        setting_name: 'app.current_wallet_address',
-        setting_value: walletAddress
+      await supabase.rpc('set_current_wallet_address', {
+        wallet_addr: walletAddress
       });
 
       const fileExt = file.name.split('.').pop();

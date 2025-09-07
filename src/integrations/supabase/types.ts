@@ -682,6 +682,10 @@ export type Database = {
           wallet_address: string
         }[]
       }
+      set_current_wallet_address: {
+        Args: { wallet_addr: string }
+        Returns: undefined
+      }
       user_can_mint_tokens: {
         Args: { _user_id: string }
         Returns: boolean
