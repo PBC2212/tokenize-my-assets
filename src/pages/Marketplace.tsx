@@ -117,7 +117,7 @@ const Marketplace = () => {
     }
 
     buyMutation.mutate({
-      tokenId: listing.id,
+      tokenId: listing.token_id || listing.id,
       amount: parseFloat(buyAmount),
     });
   };
@@ -142,7 +142,7 @@ const Marketplace = () => {
     }
 
     sellMutation.mutate({
-      tokenId: listing.id,
+      tokenId: listing.token_id || listing.id,
       amount: parseFloat(sellAmount),
       price: parseFloat(sellPrice),
     });
@@ -162,9 +162,14 @@ const Marketplace = () => {
   };
 
   const filteredListings = listings.filter((listing: any) => {
-    const matchesSearch = listing.assetName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         listing.tokenSymbol.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesAssetType = selectedAssetType === "all" || listing.assetType === selectedAssetType;
+    // Safe property access with fallbacks
+    const tokenName = listing.tokens?.token_name || listing.assetName || '';
+    const tokenSymbol = listing.tokens?.token_symbol || listing.tokenSymbol || '';
+    const assetType = listing.tokens?.asset_type || listing.assetType || '';
+    
+    const matchesSearch = tokenName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         tokenSymbol.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesAssetType = selectedAssetType === "all" || assetType === selectedAssetType;
     return matchesSearch && matchesAssetType;
   });
 
@@ -241,7 +246,15 @@ const Marketplace = () => {
       {/* Listings Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredListings.map((listing: any) => {
-          const IconComponent = getAssetIcon(listing.assetType);
+          // Safe property access with fallbacks
+          const tokenSymbol = listing.tokens?.token_symbol || listing.tokenSymbol || 'TOKEN';
+          const tokenName = listing.tokens?.token_name || listing.assetName || 'Asset';
+          const assetType = listing.tokens?.asset_type || listing.assetType || 'Other';
+          const price = listing.price_per_token || listing.price || 0;
+          const totalSupply = listing.tokens?.total_supply || listing.totalSupply || 0;
+          const availableTokens = listing.amount || listing.availableTokens || 0;
+          
+          const IconComponent = getAssetIcon(assetType);
           return (
             <Card key={listing.id} className="gradient-card border-0 hover:shadow-lg transition-all duration-300 animate-float">
               <CardHeader>
@@ -251,32 +264,32 @@ const Marketplace = () => {
                       <IconComponent className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">{listing.tokenSymbol}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{listing.assetType}</p>
+                      <CardTitle className="text-lg">{tokenSymbol}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{assetType}</p>
                     </div>
                   </div>
                   <Badge className={`${
-                    listing.change24h > 0 
+                    (listing.change24h || 0) > 0 
                       ? 'bg-success/20 text-success border-success/20' 
                       : 'bg-destructive/20 text-destructive border-destructive/20'
                   }`}>
-                    {listing.change24h > 0 ? (
+                    {(listing.change24h || 0) > 0 ? (
                       <TrendingUp className="w-3 h-3 mr-1" />
                     ) : (
                       <TrendingDown className="w-3 h-3 mr-1" />
                     )}
-                    {listing.change24h > 0 ? '+' : ''}{listing.change24h}%
+                    {(listing.change24h || 0) > 0 ? '+' : ''}{(listing.change24h || 0)}%
                   </Badge>
                 </div>
               </CardHeader>
               
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">{listing.assetName}</p>
+                  <p className="text-sm text-muted-foreground mb-1">{tokenName}</p>
                   <div className="flex items-center space-x-2">
                     <DollarSign className="w-4 h-4 text-success" />
                     <span className="text-2xl font-bold text-success">
-                      ${listing.price.toFixed(2)}
+                      ${price.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -284,24 +297,24 @@ const Marketplace = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">NAV</p>
-                    <p className="font-semibold">${listing.nav.toLocaleString()}</p>
+                    <p className="font-semibold">${(listing.nav || price * totalSupply || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Liquidity</p>
-                    <p className="font-semibold">${listing.liquidity.toLocaleString()}</p>
+                    <p className="font-semibold">${(listing.liquidity || price * availableTokens || 0).toLocaleString()}</p>
                   </div>
                 </div>
 
                 <div className="text-sm">
                   <p className="text-muted-foreground">Available Tokens</p>
                   <p className="font-semibold">
-                    {listing.availableTokens.toLocaleString()} / {listing.totalSupply.toLocaleString()}
+                    {availableTokens.toLocaleString()} / {totalSupply.toLocaleString()}
                   </p>
                   <div className="w-full bg-muted/50 rounded-full h-2 mt-1">
                     <div 
                       className="bg-accent h-2 rounded-full"
                       style={{ 
-                        width: `${(listing.availableTokens / listing.totalSupply) * 100}%` 
+                        width: `${totalSupply > 0 ? (availableTokens / totalSupply) * 100 : 0}%` 
                       }}
                     ></div>
                   </div>
@@ -317,7 +330,7 @@ const Marketplace = () => {
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Buy {listing.tokenSymbol} Tokens</DialogTitle>
+                        <DialogTitle>Buy {tokenSymbol} Tokens</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div>
@@ -333,7 +346,7 @@ const Marketplace = () => {
                         <div className="text-sm space-y-2">
                           <div className="flex justify-between">
                             <span>Total Cost:</span>
-                            <span className="font-semibold">${(parseFloat(buyAmount) * listing.price || 0).toFixed(2)}</span>
+                            <span className="font-semibold">${(parseFloat(buyAmount) * price || 0).toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
                             <span>Connected Wallet:</span>
@@ -377,7 +390,7 @@ const Marketplace = () => {
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Sell {listing.tokenSymbol} Tokens</DialogTitle>
+                        <DialogTitle>Sell {tokenSymbol} Tokens</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div>
