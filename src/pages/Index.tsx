@@ -51,10 +51,10 @@ const Index = () => {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-white" />
+              <Wallet className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              TokenizeRWA
+              IME Capital
             </span>
           </div>
           
@@ -76,17 +76,17 @@ const Index = () => {
             
             <h1 className="text-5xl md:text-7xl font-bold leading-tight">
               <span className="bg-gradient-primary bg-clip-text text-transparent">
-                Tokenize Real World Assets
+                Professional Asset Tokenization
               </span>
               <br />
               <span className="text-foreground">
-                Unlock Global Liquidity
+                With IME Capital
               </span>
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Transform physical assets into digital tokens. Enable fractional ownership, 
-              instant trading, and global accessibility with enterprise-grade security.
+              Transform your real-world assets into digital tokens with our professional 
+              tokenization platform. Secure, compliant, and accessible 9am-7pm EST.
             </p>
             
             <div className="flex flex-col items-center gap-6">
@@ -188,14 +188,14 @@ const Index = () => {
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
               <div className="w-6 h-6 bg-gradient-primary rounded flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-white" />
+                <Wallet className="w-4 h-4 text-white" />
               </div>
               <span className="font-bold bg-gradient-primary bg-clip-text text-transparent">
-                TokenizeRWA
+                IME Capital
               </span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © 2024 TokenizeRWA. Powered by Web3. All rights reserved.
+              © 2025 IME Capital Tokenization LLC. All rights reserved.
             </div>
           </div>
         </div>
