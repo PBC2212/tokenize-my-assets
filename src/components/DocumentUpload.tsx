@@ -91,6 +91,9 @@ export const DocumentUpload = ({
         throw new Error('User not authenticated');
       }
 
+      // Set wallet context before storage operation
+      await supabase.rpc('set_current_wallet_address', { wallet_addr: walletAddress });
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       
