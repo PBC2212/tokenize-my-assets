@@ -478,10 +478,13 @@ export const dashboardApi = {
     const activeAssets = assets?.filter(a => a.status === 'approved').length || 0;
     const pendingAssets = assets?.filter(a => a.status === 'under_review').length || 0;
     
-    // Calculate total invested from activities (pledged assets + token investments)
+    // Calculate total invested from activities (only actual investments - pledged assets and token purchases)
     const totalInvested = activities?.filter(activity => 
-      ['asset_pledged', 'token_purchased', 'token_minted'].includes(activity.type)
+      ['asset_pledged', 'token_purchased'].includes(activity.type)
     ).reduce((sum, activity) => sum + (activity.amount || 0), 0) || 0;
+    
+    // Calculate total activity value (all activities)
+    const totalActivityValue = activities?.reduce((sum, activity) => sum + (activity.amount || 0), 0) || 0;
     
     // Calculate total transactions from activities
     const totalTransactions = activities?.length || 0;
@@ -499,6 +502,7 @@ export const dashboardApi = {
         totalAssets,
         pendingAssets,
         totalInvested,
+        totalActivityValue,
         totalLiquidity,
         totalTokens,
         totalTransactions,
