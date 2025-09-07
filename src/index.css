@@ -6,76 +6,76 @@
 
 @layer base {
   :root {
-    /* Core backgrounds - Dark theme primary */
-    --background: 220 26% 7%;
-    --foreground: 210 40% 98%;
+    /* Core backgrounds - Clean white professional */
+    --background: 0 0% 100%;
+    --foreground: 220 13% 18%;
 
-    /* Cards and surfaces - Slightly lighter for depth */
-    --card: 220 20% 10%;
-    --card-foreground: 210 40% 98%;
+    /* Cards and surfaces - Subtle gray for depth */
+    --card: 0 0% 98%;
+    --card-foreground: 220 13% 18%;
 
     /* Popovers and dropdowns */
-    --popover: 220 20% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 13% 18%;
 
     /* Primary brand - Professional blue */
     --primary: 214 84% 56%;
-    --primary-foreground: 210 40% 98%;
+    --primary-foreground: 0 0% 100%;
     --primary-glow: 214 84% 70%;
 
-    /* Secondary - Deeper blue-gray */
-    --secondary: 220 16% 16%;
-    --secondary-foreground: 210 40% 98%;
+    /* Secondary - Light gray */
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 220 13% 18%;
 
     /* Muted elements */
-    --muted: 220 13% 13%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
     /* Accent - Vibrant cyan for highlights */
     --accent: 191 91% 56%;
-    --accent-foreground: 220 26% 7%;
+    --accent-foreground: 0 0% 100%;
 
     /* Success - Green for positive actions */
     --success: 142 76% 36%;
-    --success-foreground: 210 40% 98%;
+    --success-foreground: 0 0% 100%;
 
     /* Warning - Gold for asset values */
     --warning: 45 93% 47%;
-    --warning-foreground: 220 26% 7%;
+    --warning-foreground: 0 0% 100%;
 
     /* Destructive actions */
     --destructive: 0 62% 50%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
     /* Borders and inputs */
-    --border: 220 13% 18%;
-    --input: 220 13% 18%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
     --ring: 214 84% 56%;
 
     /* Border radius for modern feel */
     --radius: 0.75rem;
 
-    /* Gradients for modern blockchain aesthetic */
+    /* Gradients for modern professional aesthetic */
     --gradient-primary: linear-gradient(135deg, hsl(214 84% 56%), hsl(191 91% 56%));
-    --gradient-card: linear-gradient(135deg, hsl(220 20% 10%), hsl(220 16% 12%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(210 40% 98%));
     --gradient-accent: linear-gradient(135deg, hsl(191 91% 56%), hsl(214 84% 56%));
     
     /* Shadows for depth */
-    --shadow-glow: 0 0 40px hsl(214 84% 56% / 0.3);
-    --shadow-card: 0 10px 30px -10px hsl(220 26% 4% / 0.6);
-    --shadow-elegant: 0 20px 60px -10px hsl(220 26% 4% / 0.8);
+    --shadow-glow: 0 0 40px hsl(214 84% 56% / 0.2);
+    --shadow-card: 0 4px 20px -2px hsl(220 13% 18% / 0.08);
+    --shadow-elegant: 0 10px 40px -4px hsl(220 13% 18% / 0.12);
 
     /* Animation timing */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     /* Sidebar colors */
-    --sidebar-background: 220 26% 7%;
-    --sidebar-foreground: 210 40% 98%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 13% 18%;
     --sidebar-primary: 214 84% 56%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 220 20% 10%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 13% 18%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 220 13% 18%;
+    --sidebar-border: 214 32% 91%;
     --sidebar-ring: 214 84% 56%;
   }
 
@@ -108,7 +108,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    background: linear-gradient(135deg, hsl(220 26% 7%) 0%, hsl(220 20% 10%) 100%);
+    background: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 100%);
     min-height: 100vh;
   }
 
@@ -145,8 +145,8 @@
   /* Glass morphism effect */
   .glass {
     backdrop-filter: blur(10px);
-    background: hsl(220 20% 10% / 0.8);
-    border: 1px solid hsl(220 13% 18% / 0.5);
+    background: hsl(0 0% 100% / 0.8);
+    border: 1px solid hsl(214 32% 91% / 0.5);
   }
 
   /* Animation classes */
