@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { calculationEngine } from './calculations';
+import { priceOracle } from './oracles';
 
 // Database types based on our Supabase schema
 interface UserAsset {
@@ -244,7 +246,25 @@ export const marketplaceApi = {
       .order('created_at', { ascending: false });
       
     if (error) throw error;
-    return { data: data || [] };
+    
+    // Update listings with current market prices
+    const listingsWithCurrentPrices = await Promise.all(
+      (data || []).map(async (listing) => {
+        const currentPrice = await calculationEngine.calculateMarketPrice(listing.token_id);
+        const change24h = ((currentPrice - listing.price_per_token) / listing.price_per_token) * 100;
+        
+        return {
+          ...listing,
+          current_price: currentPrice,
+          change24h: change24h,
+          // Calculate market metrics
+          nav: currentPrice * parseFloat(listing.amount.toString()),
+          liquidity: currentPrice * parseFloat(listing.amount.toString()) * 0.8 // 80% liquidity assumption
+        };
+      })
+    );
+    
+    return { data: listingsWithCurrentPrices };
   },
   
   buy: async (data: { tokenId: string; amount: number; walletAddress?: string; transactionHash?: string }) => {
@@ -285,7 +305,7 @@ export const liquidityApi = {
   pools: async () => {
     const { data: { user } } = await supabase.auth.getUser();
     
-    // First get all pools
+    // Get all pools
     const { data: pools, error } = await supabase
       .from('liquidity_pools')
       .select('*')
@@ -294,40 +314,23 @@ export const liquidityApi = {
       
     if (error) throw error;
     
-    if (!user) {
-      // If not authenticated, return pools without user data
-      return { 
-        data: (pools || []).map(pool => ({
+    // Calculate real-time metrics for each pool
+    const poolsWithMetrics = await Promise.all(
+      (pools || []).map(async (pool) => {
+        const metrics = await calculationEngine.calculateLiquidityMetrics(pool.id, user?.id);
+        return {
           ...pool,
-          my_liquidity: 0,
-          fees_24h: 0
-        }))
-      };
-    }
+          total_liquidity: metrics.totalLiquidity,
+          apr: metrics.apr,
+          volume_24h: metrics.volume24h,
+          fees_24h: metrics.fees24h,
+          my_liquidity: metrics.userLiquidity,
+          user_fees_24h: metrics.userFees24h
+        };
+      })
+    );
     
-    // Get user positions for these pools
-    const { data: positions } = await supabase
-      .from('liquidity_positions')
-      .select('*')
-      .eq('user_id', user.id);
-    
-    // Create a map of pool positions
-    const positionsMap = new Map();
-    (positions || []).forEach(pos => {
-      positionsMap.set(pos.pool_id, pos);
-    });
-    
-    // Merge pools with user positions
-    const poolsWithPositions = (pools || []).map(pool => {
-      const position = positionsMap.get(pool.id);
-      return {
-        ...pool,
-        my_liquidity: position ? parseFloat(position.amount) : 0,
-        fees_24h: pool.fees_24h || 0
-      };
-    });
-    
-    return { data: poolsWithPositions };
+    return { data: poolsWithMetrics };
   },
   
   provide: async (data: { poolId: string; amount: number; walletAddress?: string; transactionHash?: string }) => {
@@ -442,50 +445,46 @@ export const dashboardApi = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    // Get user assets
+    // Use calculation engine for accurate, real-time data
+    const portfolioMetrics = await calculationEngine.calculatePortfolioValue(user.id);
+
+    // Get asset counts
     const { data: assets } = await supabase
       .from('user_assets')
-      .select('*')
+      .select('status')
       .eq('user_id', user.id);
 
-    // Get user tokens
-    const { data: tokens } = await supabase
-      .from('tokens')
-      .select('*')
-      .in('asset_id', assets?.map(a => a.id) || []);
-
-    // Get user liquidity positions
-    const { data: positions } = await supabase
-      .from('liquidity_positions')
-      .select('*')
-      .eq('user_id', user.id);
-
-    // Get user transactions
+    // Get transaction totals
     const { data: transactions } = await supabase
       .from('transactions')
-      .select('*')
+      .select('total_value, type')
+      .eq('user_id', user.id);
+
+    // Get liquidity positions
+    const { data: positions } = await supabase
+      .from('liquidity_positions')
+      .select('amount')
       .eq('user_id', user.id);
 
     const totalAssets = assets?.length || 0;
     const activeAssets = assets?.filter(a => a.status === 'approved').length || 0;
     const pendingAssets = assets?.filter(a => a.status === 'under_review').length || 0;
-    const portfolioValue = assets?.reduce((sum, asset) => sum + (asset.estimated_value || 0), 0) || 0;
     const totalInvested = transactions?.reduce((sum, tx) => sum + (tx.total_value || 0), 0) || 0;
     const totalLiquidity = positions?.reduce((sum, pos) => sum + parseFloat(pos.amount?.toString() || '0'), 0) || 0;
-    const totalTokens = tokens?.reduce((sum, token) => sum + parseFloat(token.total_supply?.toString() || '0'), 0) || 0;
 
     return {
       data: {
-        portfolioValue,
+        portfolioValue: portfolioMetrics.totalValue,
         activeAssets,
         totalAssets,
         pendingAssets,
         totalInvested,
         totalLiquidity,
-        totalTokens,
+        totalTokens: 0, // Will be calculated from portfolio breakdown
         totalTransactions: transactions?.length || 0,
-        change24h: 2.5, // Mock data for now
-        changeAmount: portfolioValue * 0.025
+        change24h: portfolioMetrics.change24h,
+        changeAmount: portfolioMetrics.changeAmount,
+        assetBreakdown: portfolioMetrics.assetBreakdown
       }
     };
   },

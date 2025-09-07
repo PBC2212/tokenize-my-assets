@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { liquidityApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { useWallet } from "@/hooks/useWallet";
+import { useRealTimeLiquidity, useDataSync } from "@/hooks/useRealTimeData";
 import { 
   Droplets, 
   Plus, 
@@ -18,7 +19,8 @@ import {
   DollarSign,
   BarChart3,
   Wallet,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from "lucide-react";
 
 const Liquidity = () => {
@@ -28,11 +30,17 @@ const Liquidity = () => {
 
   const queryClient = useQueryClient();
   const { wallet } = useWallet();
+  const { syncAllData } = useDataSync();
 
   const { data: pools = [], isLoading } = useQuery({
     queryKey: ['liquidity-pools'],
     queryFn: () => liquidityApi.pools().then(res => res.data),
+    refetchInterval: 45 * 1000, // Refresh every 45 seconds
   });
+
+  // Get real-time liquidity metrics for all pools
+  const poolIds = pools.map((pool: any) => pool.id);
+  const { liquidityMetrics, isLoading: metricsLoading, refresh: refreshMetrics } = useRealTimeLiquidity(poolIds);
 
   const addLiquidityMutation = useMutation({
     mutationFn: (data: { poolId: string; amount: number }) => {
@@ -138,8 +146,12 @@ const Liquidity = () => {
     });
   };
 
-  const totalLiquidity = pools.reduce((sum: number, pool: any) => sum + (pool.my_liquidity || 0), 0);
-  const totalEarnings = pools.reduce((sum: number, pool: any) => sum + (pool.fees_24h || 0), 0);
+  // Calculate totals using real-time data
+  const totalLiquidity = liquidityMetrics.reduce((sum: number, metric: any) => sum + (metric.userLiquidity || 0), 0);
+  const totalEarnings = liquidityMetrics.reduce((sum: number, metric: any) => sum + (metric.userFees24h || 0), 0);
+  const avgAPR = liquidityMetrics.length > 0 
+    ? liquidityMetrics.reduce((sum: number, metric: any) => sum + (metric.apr || 0), 0) / liquidityMetrics.length 
+    : 0;
 
   if (isLoading) {
     return (
@@ -159,13 +171,27 @@ const Liquidity = () => {
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          Liquidity Pools
-        </h1>
-        <p className="text-muted-foreground">
-          Provide liquidity to earn fees from asset token trading
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            Liquidity Pools
+          </h1>
+          <p className="text-muted-foreground">
+            Provide liquidity to earn fees with real-time APR calculations
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            refreshMetrics();
+            syncAllData();
+          }}
+          disabled={isLoading || metricsLoading}
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${isLoading || metricsLoading ? 'animate-spin' : ''}`} />
+          Refresh Data
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -214,12 +240,10 @@ const Liquidity = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {pools.length > 0 
-                ? (pools.reduce((sum: number, pool: any) => sum + pool.apr, 0) / pools.length).toFixed(1) 
-                : 0}%
+              {avgAPR.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
-              Weighted average
+              Real-time calculation
             </p>
           </CardContent>
         </Card>
@@ -227,7 +251,15 @@ const Liquidity = () => {
 
       {/* Pools Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {pools.map((pool: any, index: number) => (
+        {pools.map((pool: any, index: number) => {
+          // Get real-time metrics for this pool
+          const poolMetrics = liquidityMetrics.find((m: any) => m.poolId === pool.id) || {};
+          const displayAPR = poolMetrics.apr || pool.apr || 0;
+          const displayLiquidity = poolMetrics.totalLiquidity || pool.total_liquidity || 0;
+          const displayVolume = poolMetrics.volume24h || pool.volume_24h || 0;
+          const userLiquidity = poolMetrics.userLiquidity || pool.my_liquidity || 0;
+          const userFees = poolMetrics.userFees24h || pool.fees_24h || 0;
+          return (
           <Card key={pool.id} className="gradient-card border-0 hover:shadow-lg transition-all duration-300">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -240,9 +272,14 @@ const Liquidity = () => {
                     <p className="text-sm text-muted-foreground">{pool.token_a} / {pool.token_b}</p>
                   </div>
                 </div>
-                <Badge className="bg-success/20 text-success border-success/20">
-                  {pool.apr}% APR
-                </Badge>
+                <div className="flex flex-col items-end space-y-1">
+                  <Badge className="bg-success/20 text-success border-success/20">
+                    {displayAPR.toFixed(2)}% APR
+                  </Badge>
+                  {poolMetrics.apr && (
+                    <span className="text-xs text-accent">Live</span>
+                  )}
+                </div>
               </div>
             </CardHeader>
             
@@ -250,22 +287,22 @@ const Liquidity = () => {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Total Liquidity</p>
-                  <p className="font-semibold text-lg">${pool.total_liquidity?.toLocaleString()}</p>
+                  <p className="font-semibold text-lg">${displayLiquidity.toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">24h Volume</p>
-                  <p className="font-semibold text-lg">${pool.volume_24h?.toLocaleString()}</p>
+                  <p className="font-semibold text-lg">${displayVolume.toLocaleString()}</p>
                 </div>
               </div>
 
               <div className="border-t border-border/50 pt-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-muted-foreground">My Liquidity</p>
-                  <p className="font-semibold">${(pool.my_liquidity || 0).toLocaleString()}</p>
+                  <p className="font-semibold">${userLiquidity.toLocaleString()}</p>
                 </div>
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm text-muted-foreground">My 24h Fees</p>
-                  <p className="font-semibold text-success">${(pool.fees_24h || 0).toLocaleString()}</p>
+                  <p className="font-semibold text-success">${userFees.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -300,9 +337,9 @@ const Liquidity = () => {
                         />
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1">
-                        <p>Pool APR: <span className="text-success font-semibold">{pool.apr}%</span></p>
-                        <p>Current Share: {(((pool.my_liquidity || 0) / pool.total_liquidity) * 100).toFixed(2)}%</p>
-                        <p>Expected daily earnings: ${((parseFloat(addAmount) || 0) * pool.apr / 365 / 100).toFixed(2)}</p>
+                        <p>Pool APR: <span className="text-success font-semibold">{displayAPR.toFixed(2)}%</span></p>
+                        <p>Current Share: {displayLiquidity > 0 ? (((userLiquidity) / displayLiquidity) * 100).toFixed(2) : 0}%</p>
+                        <p>Expected daily earnings: ${((parseFloat(addAmount) || 0) * displayAPR / 365 / 100).toFixed(2)}</p>
                         <div className="flex items-center justify-between text-xs border-t border-border/50 pt-2 mt-2">
                           <span>Connected Wallet:</span>
                           <span className="font-mono">
@@ -342,7 +379,7 @@ const Liquidity = () => {
                       size="sm" 
                       variant="outline" 
                       className="flex-1"
-                      disabled={pool.my_liquidity === 0}
+                      disabled={userLiquidity === 0}
                       onClick={() => setSelectedPoolId(pool.id)}
                     >
                       <Minus className="w-4 h-4 mr-2" />
@@ -364,12 +401,12 @@ const Liquidity = () => {
                           value={removeAmount}
                           onChange={(e) => setRemoveAmount(e.target.value)}
                           placeholder="Enter amount to remove"
-                          max={pool.my_liquidity || 0}
+                          max={userLiquidity}
                           className="bg-muted/50 border-border/50"
                         />
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1">
-                        <p>Available to remove: ${(pool.my_liquidity || 0).toLocaleString()}</p>
+                        <p>Available to remove: ${userLiquidity.toLocaleString()}</p>
                         <p>This will reduce your earnings proportionally</p>
                         <div className="flex items-center justify-between text-xs border-t border-border/50 pt-2 mt-2">
                           <span>Connected Wallet:</span>
@@ -407,7 +444,8 @@ const Liquidity = () => {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {pools.length === 0 && (

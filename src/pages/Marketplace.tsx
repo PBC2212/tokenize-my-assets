@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { marketplaceApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { useWallet } from "@/hooks/useWallet";
+import { useRealTimePrices } from "@/hooks/useRealTimeData";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -23,7 +24,8 @@ import {
   BarChart3,
   Coins,
   Wallet,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from "lucide-react";
 
 const Marketplace = () => {
@@ -40,7 +42,12 @@ const Marketplace = () => {
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['marketplace-listings'],
     queryFn: () => marketplaceApi.listings().then(res => res.data),
+    refetchInterval: 30 * 1000, // Refresh every 30 seconds for real-time prices
   });
+
+  // Get real-time prices for all tokens
+  const tokenIds = listings.map((listing: any) => listing.token_id).filter(Boolean);
+  const { prices: realTimePrices, isLoading: pricesLoading } = useRealTimePrices(tokenIds);
 
   const buyMutation = useMutation({
     mutationFn: (data: { tokenId: string; amount: number }) => {
@@ -191,13 +198,24 @@ const Marketplace = () => {
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          Asset Marketplace
-        </h1>
-        <p className="text-muted-foreground">
-          Trade tokenized real-world assets with complete transparency
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            Asset Marketplace
+          </h1>
+          <p className="text-muted-foreground">
+            Trade tokenized real-world assets with real-time pricing
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] })}
+          disabled={isLoading || pricesLoading}
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${isLoading || pricesLoading ? 'animate-spin' : ''}`} />
+          Refresh Prices
+        </Button>
       </div>
 
       {/* Filters */}
@@ -246,11 +264,14 @@ const Marketplace = () => {
       {/* Listings Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredListings.map((listing: any) => {
-          // Safe property access with fallbacks
           const tokenSymbol = listing.tokens?.token_symbol || listing.tokenSymbol || 'TOKEN';
           const tokenName = listing.tokens?.token_name || listing.assetName || 'Asset';
           const assetType = listing.tokens?.asset_type || listing.assetType || 'Other';
-          const price = listing.price_per_token || listing.price || 0;
+          
+          // Use real-time price if available, fallback to listing price
+          const currentPrice = listing.current_price || realTimePrices[listing.token_id]?.price || listing.price_per_token || 0;
+          const change24h = listing.change24h || realTimePrices[listing.token_id]?.change24h || 0;
+          
           const totalSupply = listing.tokens?.total_supply || listing.totalSupply || 0;
           const availableTokens = listing.amount || listing.availableTokens || 0;
           
@@ -269,16 +290,16 @@ const Marketplace = () => {
                     </div>
                   </div>
                   <Badge className={`${
-                    (listing.change24h || 0) > 0 
+                    change24h > 0 
                       ? 'bg-success/20 text-success border-success/20' 
                       : 'bg-destructive/20 text-destructive border-destructive/20'
                   }`}>
-                    {(listing.change24h || 0) > 0 ? (
+                    {change24h > 0 ? (
                       <TrendingUp className="w-3 h-3 mr-1" />
                     ) : (
                       <TrendingDown className="w-3 h-3 mr-1" />
                     )}
-                    {(listing.change24h || 0) > 0 ? '+' : ''}{(listing.change24h || 0)}%
+                    {change24h > 0 ? '+' : ''}{change24h.toFixed(2)}%
                   </Badge>
                 </div>
               </CardHeader>
@@ -289,19 +310,24 @@ const Marketplace = () => {
                   <div className="flex items-center space-x-2">
                     <DollarSign className="w-4 h-4 text-success" />
                     <span className="text-2xl font-bold text-success">
-                      ${price.toFixed(2)}
+                      ${currentPrice.toFixed(2)}
                     </span>
+                    {realTimePrices[listing.token_id] && (
+                      <span className="text-xs text-muted-foreground">
+                        Live
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">NAV</p>
-                    <p className="font-semibold">${(listing.nav || price * totalSupply || 0).toLocaleString()}</p>
+                    <p className="font-semibold">${(listing.nav || currentPrice * totalSupply || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Liquidity</p>
-                    <p className="font-semibold">${(listing.liquidity || price * availableTokens || 0).toLocaleString()}</p>
+                    <p className="font-semibold">${(listing.liquidity || currentPrice * availableTokens || 0).toLocaleString()}</p>
                   </div>
                 </div>
 
@@ -348,8 +374,12 @@ const Marketplace = () => {
                         </div>
                         <div className="text-sm space-y-2">
                           <div className="flex justify-between">
+                            <span>Current Price:</span>
+                            <span className="font-semibold">${currentPrice.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
                             <span>Total Cost:</span>
-                            <span className="font-semibold">${(parseFloat(buyAmount) * price || 0).toFixed(2)}</span>
+                            <span className="font-semibold">${(parseFloat(buyAmount) * currentPrice || 0).toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
                             <span>Connected Wallet:</span>
